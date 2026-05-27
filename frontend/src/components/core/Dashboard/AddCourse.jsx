@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
-import { getCategories, createCourse, addSection, addLesson } from "../../../services/courseService";
+import { getCategories, createCourse, addSection, addLesson, publishCourse } from "../../../services/courseService";
 import { uploadThumbnail } from "../../../services/uploadService";
+import { useCourseDraftAutosave } from "../../../hooks/useCourseDraftAutosave";
+import { markDraftPublished } from "../../../services/courseDraftService";
 import { FaCloudUploadAlt, FaYoutube, FaVideo } from "react-icons/fa";
-import { supabase } from "../../../config/supabaseClient";
+import VideoPreview from "../../common/VideoPreview";
 
 // Simple tag input component
 function TagInput({ value, onChange }) {
@@ -45,18 +47,15 @@ const STEPS = ["Details", "Curriculum", "Pricing", "Publish"];
 
 export default function AddCourse({ setActiveSection, initialStep = 0 }) {
   const navigate = useNavigate();
-  const { token } = useSelector((state) => state.auth);
   const { user }  = useSelector((state) => state.profile);
   const [step, setStep] = useState(initialStep);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [courseCategories, setCourseCategories] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [departmentsLoading, setDepartmentsLoading] = useState(true);
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [videoPreview, setVideoPreview] = useState(null);
-  const [autosaveTimer, setAutosaveTimer] = useState(null);
+  const [isCustomThumbnail, setIsCustomThumbnail] = useState(false);
 
   // Generate slug from title
   const generateSlug = (title) => {
@@ -89,34 +88,42 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
     isFree: false,
     visibility: "private",
     duration: "",
-    // College-specific fields
-    departmentId: "",
-    semester: "",
-    subjectCode: "",
     outcomes: [],
-    requirements: []
+    requirements: [],
+    // Preview video fields
+    preview_video_url: "",
+    preview_video_id: null,
+    preview_thumbnail: null,
+    video_provider: "youtube",
+    video_duration: null,
+  });
+
+  const {
+    isHydrating,
+    saveState,
+    saveError,
+    lastSavedAt,
+    draftMeta,
+    forceSave,
+  } = useCourseDraftAutosave({
+    instructorId: user?.id,
+    data,
+    step,
+    setData,
+    setStep,
   });
 
   useEffect(() => {
     let isMounted = true;
     (async () => {
       setCategoriesLoading(true);
-      setDepartmentsLoading(true);
 
       // Fetch categories
       const categoriesData = await getCategories();
-      
-      // Fetch departments from Supabase
-      const { data: deptsData, error: deptsError } = await supabase
-        .from('departments')
-        .select('*')
-        .order('name');
 
       if (isMounted) {
         if (!categoriesData.error) setCourseCategories(categoriesData.data);
-        if (!deptsError) setDepartments(deptsData);
         setCategoriesLoading(false);
-        setDepartmentsLoading(false);
       }
     })();
     return () => { isMounted = false; };
@@ -125,6 +132,7 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
   function update(field, value) {
     setData(d => ({ ...d, [field]: value }));
     if (field === 'coverImage' && value) {
+      setIsCustomThumbnail(true);
       const reader = new FileReader();
       reader.onloadend = () => setThumbnailPreview(reader.result);
       reader.readAsDataURL(value);
@@ -143,7 +151,8 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
     }));
   }
 
-  function addSection() {
+  /** UI only — must not shadow `addSection` from courseService (used in handlePublish). */
+  function appendBlankSection() {
     setData(d => ({ ...d, sections: [...d.sections, { id: Date.now(), title: "New Section", lectures: [] }] }));
   }
 
@@ -191,13 +200,26 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
     }));
   }
 
+  const handleVideoDataChange = useCallback(({ videoId, thumbnail, isValid }) => {
+    setData(d => ({
+      ...d,
+      preview_video_id: videoId,
+      preview_thumbnail: thumbnail,
+      video_provider: isValid ? "youtube" : null,
+    }));
+    // Auto-update thumbnail preview if not custom overridden
+    if (!isCustomThumbnail) {
+      setThumbnailPreview(thumbnail || null);
+    }
+  }, [isCustomThumbnail]);
+
   function validateCurrentStep() {
     if (step === 0) {
       if (!data.title.trim()) return "Title is required";
       if (!data.category) return "Category is required";
       if (!data.description.trim()) return "Description is required";
-      if (!data.coverImage) return "Thumbnail is required";
-      if (data.videoType === 'youtube' && !data.videoUrl.trim()) return "YouTube URL is required";
+      if (!data.coverImage && !thumbnailPreview) return "Thumbnail is required";
+      if (data.videoType === 'youtube' && !data.preview_video_url.trim()) return "YouTube URL is required";
       if (data.videoType === 'upload' && !data.videoFile) return "Video file is required";
     } else if (step === 1) {
       if (!data.sections.length) return "At least one section required";
@@ -232,21 +254,26 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
     try {
       const instructorId = user?.id;
       if (!instructorId) throw new Error("Not authenticated");
+      await forceSave();
 
-      // 1. Create course draft
+      // 1. Create course as draft first (content added next; then we publish).
       const { data: course, error: courseErr } = await createCourse(instructorId, {
         title:               data.title,
         slug:                generateSlug(data.title),
         course_description:  data.description,
         price:               data.isFree ? 0 : Number(data.price),
         category_id:         data.category || null,
-        department_id:       data.departmentId || null,
-        semester:            data.semester ? parseInt(data.semester) : null,
-        subject_code:        data.subjectCode || "",
-        tags:                data.tags,
-        status:              "draft",
+        tags:                Array.isArray(data.tags) ? data.tags : [],
+        learning_outcomes:   Array.isArray(data.outcomes) ? data.outcomes : [],
+        requirements:        Array.isArray(data.requirements) ? data.requirements : [],
         is_free:             data.isFree,
-      });
+        // Preview video fields
+        preview_video_url:   data.preview_video_url,
+        preview_video_id:    data.preview_video_id,
+        preview_thumbnail:   data.preview_thumbnail,
+        video_provider:      data.video_provider,
+        video_duration:      data.video_duration,
+      }, "draft");
 
       if (courseErr) {
         console.error("Course creation failed:", courseErr);
@@ -257,7 +284,7 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
         throw new Error("No course returned from createCourse");
       }
 
-      // 2. Upload thumbnail if file provided
+      // 2. Upload thumbnail if file provided, otherwise if auto-fetched YouTube URL is used, save it!
       if (data.coverImage) {
         toast.loading("Uploading thumbnail...", { id: toastId });
         const { url, error: upErr } = await uploadThumbnail(instructorId, course.id, data.coverImage);
@@ -267,6 +294,9 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
           const { updateCourse } = await import("../../../services/courseService");
           await updateCourse(course.id, { thumbnail: url });
         }
+      } else if (!isCustomThumbnail && thumbnailPreview) {
+        const { updateCourse } = await import("../../../services/courseService");
+        await updateCourse(course.id, { thumbnail: thumbnailPreview });
       }
 
       // 3. Save sections + lessons
@@ -286,7 +316,21 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
         }
       }
 
-      toast.success("Course saved as Draft! Go to My Courses to publish.", { id: toastId, duration: 5000 });
+      // 4. Publish — "Publish Course" must set status in DB (was always left as draft before).
+      toast.loading("Publishing your course...", { id: toastId });
+      const { error: publishErr } = await publishCourse(course.id);
+      if (publishErr) {
+        throw new Error(
+          publishErr.message ||
+            "Course was saved but publishing failed. Open My Courses and try publishing again."
+        );
+      }
+
+      if (draftMeta?.id) {
+        await markDraftPublished(draftMeta.id, course.id);
+      }
+
+      toast.success("Course published successfully!", { id: toastId, duration: 5000 });
       navigate("/dashboard/instructor/my-courses");
     } catch (e) {
       console.error("handlePublish error:", e);
@@ -304,6 +348,12 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
         <div>
           <h1 className="text-3xl font-bold text-richblack-5">Add New Course</h1>
           <p className="text-sm text-richblack-300 mt-1">Fill in the details to create your course.</p>
+          <p className="text-xs mt-2 text-richblack-400">
+            {isHydrating && "Loading draft..."}
+            {!isHydrating && saveState === "saving" && "Saving draft..."}
+            {!isHydrating && saveState === "saved" && `Saved${lastSavedAt ? ` · ${new Date(lastSavedAt).toLocaleString()}` : ""}`}
+            {!isHydrating && saveState === "error" && (saveError || "Failed to save draft. Please try again.")}
+          </p>
         </div>
         <div className="flex gap-3">
           {step > 0 && <button onClick={handlePrev} className="px-5 py-2.5 text-sm rounded-lg bg-richblack-700 hover:bg-richblack-600 text-richblack-25 transition-all duration-200">Back</button>}
@@ -336,17 +386,17 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
             <div className="space-y-6 lg:col-span-2">
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-richblack-5">Course Title <span className="text-pink-200">*</span></label>
-                <input value={data.title} onChange={e => update('title', e.target.value)} placeholder="e.g. Full Stack MERN Development" className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 focus:ring-1 focus:ring-yellow-50 outline-none text-richblack-25 transition-all duration-200" />
+                <input value={data.title || ""} onChange={e => update('title', e.target.value)} placeholder="e.g. Full Stack MERN Development" className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 focus:ring-1 focus:ring-yellow-50 outline-none text-richblack-25 transition-all duration-200" />
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-richblack-5">Description <span className="text-pink-200">*</span></label>
-                <textarea rows={6} value={data.description} onChange={e => update('description', e.target.value)} placeholder="Provide a detailed description of the course content..." className="w-full resize-none px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 focus:ring-1 focus:ring-yellow-50 outline-none text-richblack-25 transition-all duration-200" />
+                <textarea rows={6} value={data.description || ""} onChange={e => update('description', e.target.value)} placeholder="Provide a detailed description of the course content..." className="w-full resize-none px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 focus:ring-1 focus:ring-yellow-50 outline-none text-richblack-25 transition-all duration-200" />
               </div>
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-richblack-5">Category <span className="text-pink-200">*</span></label>
                   <select
-                    value={data.category}
+                    value={data.category || ""}
                     onChange={e => update('category', e.target.value)}
                     className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={categoriesLoading}
@@ -364,39 +414,6 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-richblack-5">Department <span className="text-pink-200">*</span></label>
-                  <select
-                    value={data.departmentId}
-                    onChange={e => update('departmentId', e.target.value)}
-                    className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={departmentsLoading}
-                  >
-                    <option value="">
-                      {departmentsLoading
-                        ? "Loading departments..."
-                        : departments.length === 0
-                          ? "No departments found"
-                          : "Select Department"}
-                    </option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-richblack-5">Semester</label>
-                  <select value={data.semester} onChange={e => update('semester', e.target.value)} className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25 cursor-pointer">
-                    <option value="">Select Semester</option>
-                    {[1,2,3,4,5,6,7,8].map(sem => (
-                      <option key={sem} value={sem}>Semester {sem}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-richblack-5">Subject Code</label>
-                  <input value={data.subjectCode} onChange={e => update('subjectCode', e.target.value)} placeholder="e.g. CS301" className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25" />
-                </div>
-                <div className="space-y-2">
                   <label className="block text-sm font-semibold text-richblack-5">Level <span className="text-pink-200">*</span></label>
                   <select value={data.level} onChange={e => update('level', e.target.value)} className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25 cursor-pointer">
                     <option>Beginner</option>
@@ -404,9 +421,9 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                     <option>Advanced</option>
                   </select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 sm:col-span-2">
                   <label className="block text-sm font-semibold text-richblack-5">Duration</label>
-                  <input value={data.duration} onChange={e => update('duration', e.target.value)} placeholder="e.g. 3 Months" className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25" />
+                  <input value={data.duration || ""} onChange={e => update('duration', e.target.value)} placeholder="e.g. 3 Months" className="w-full px-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25" />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <label className="block text-sm font-semibold text-richblack-5">Tags</label>
@@ -426,7 +443,7 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                   <div className="space-y-2">
                     {data.outcomes.map((outcome, idx) => (
                       <div key={idx} className="flex gap-2">
-                        <input value={outcome} onChange={e => updateOutcome(idx, e.target.value)} placeholder="e.g. Build a full-stack application" className="flex-1 px-3 py-2 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25" />
+                        <input value={outcome || ""} onChange={e => updateOutcome(idx, e.target.value)} placeholder="e.g. Build a full-stack application" className="flex-1 px-3 py-2 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25" />
                         <button type="button" onClick={() => removeOutcome(idx)} className="px-2 py-2 text-sm rounded-lg bg-rose-600/20 text-rose-500 hover:bg-rose-600/30 transition-all">✕</button>
                       </div>
                     ))}
@@ -442,7 +459,7 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                   <div className="space-y-2">
                     {data.requirements.map((req, idx) => (
                       <div key={idx} className="flex gap-2">
-                        <input value={req} onChange={e => updateRequirement(idx, e.target.value)} placeholder="e.g. Basic knowledge of HTML/CSS" className="flex-1 px-3 py-2 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25" />
+                        <input value={req || ""} onChange={e => updateRequirement(idx, e.target.value)} placeholder="e.g. Basic knowledge of HTML/CSS" className="flex-1 px-3 py-2 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25" />
                         <button type="button" onClick={() => removeRequirement(idx)} className="px-2 py-2 text-sm rounded-lg bg-rose-600/20 text-rose-500 hover:bg-rose-600/30 transition-all">✕</button>
                       </div>
                     ))}
@@ -467,9 +484,56 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                     <input type="file" accept="image/*" onChange={e => update('coverImage', e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
                   </div>
                   {thumbnailPreview && (
-                    <button onClick={() => { setThumbnailPreview(null); update('coverImage', null) }} className="absolute top-2 right-2 bg-pink-200 text-richblack-900 p-1.5 rounded-full text-xs font-bold hover:scale-110 transition-all">✕</button>
+                    <button
+                      onClick={() => {
+                        setThumbnailPreview(null);
+                        update('coverImage', null);
+                        if (!isCustomThumbnail) {
+                          setIsCustomThumbnail(true);
+                        }
+                      }}
+                      className="absolute top-2 right-2 bg-pink-200 text-richblack-900 p-1.5 rounded-full text-xs font-bold hover:scale-110 transition-all"
+                    >
+                      ✕
+                    </button>
                   )}
                 </div>
+                {thumbnailPreview && !isCustomThumbnail && (
+                  <div className="flex flex-col items-center justify-center mt-2 p-2 bg-yellow-50/5 border border-yellow-50/10 rounded-lg">
+                    <span className="text-xs text-yellow-50 font-semibold flex items-center gap-1">
+                      <FaYoutube className="text-rose-500" /> Auto-fetched from YouTube
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomThumbnail(true);
+                        setThumbnailPreview(null);
+                        update('coverImage', null);
+                      }}
+                      className="text-yellow-50 hover:underline text-[11px] font-bold mt-1 uppercase tracking-wider"
+                    >
+                      Replace with custom image
+                    </button>
+                  </div>
+                )}
+                {thumbnailPreview && isCustomThumbnail && (
+                  <div className="flex flex-col items-center justify-center mt-2">
+                    <span className="text-xs text-richblack-400">Custom uploaded image</span>
+                    {data.preview_thumbnail && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomThumbnail(false);
+                          setThumbnailPreview(data.preview_thumbnail);
+                          update('coverImage', null);
+                        }}
+                        className="text-yellow-50 hover:underline text-[11px] font-bold mt-1 uppercase tracking-wider"
+                      >
+                        Revert to YouTube thumbnail
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -482,16 +546,20 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                 </div>
 
                 {data.videoType === 'youtube' ? (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-2 bg-richblack-900 border border-richblack-700 rounded-lg px-3 py-2.5">
                       <FaYoutube className="text-rose-600 text-xl" />
-                      <input value={data.videoUrl} onChange={e => update('videoUrl', e.target.value)} placeholder="Paste YouTube link here" className="bg-transparent outline-none text-sm text-richblack-25 w-full" />
+                      <input 
+                        value={data.preview_video_url || ""} 
+                        onChange={e => update('preview_video_url', e.target.value)} 
+                        placeholder="Paste YouTube preview link here" 
+                        className="bg-transparent outline-none text-sm text-richblack-25 w-full" 
+                      />
                     </div>
-                    {getYouTubeEmbedUrl(data.videoUrl) && (
-                      <div className="aspect-video rounded-xl overflow-hidden border border-richblack-700 bg-black shadow-inner">
-                        <iframe width="100%" height="100%" src={getYouTubeEmbedUrl(data.videoUrl)} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
-                      </div>
-                    )}
+                    <VideoPreview 
+                      url={data.preview_video_url}
+                      onVideoChange={handleVideoDataChange}
+                    />
                   </div>
                 ) : (
                   <div className="relative group">
@@ -527,25 +595,26 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                 <h2 className="text-xl font-bold text-richblack-5">Curriculum Builder</h2>
                 <p className="text-xs text-richblack-400 mt-0.5">Structure your course into sections and lectures.</p>
               </div>
-              <button onClick={addSection} className="px-4 py-2 text-xs rounded-lg bg-yellow-50 text-richblack-900 font-bold hover:scale-105 transition-all shadow-md">+ Add Section</button>
+              <button onClick={appendBlankSection} className="px-4 py-2 text-xs rounded-lg bg-yellow-50 text-richblack-900 font-bold hover:scale-105 transition-all shadow-md">+ Add Section</button>
             </div>
             <div className="space-y-6">
               {data.sections.map((s, idx) => (
                 <div key={s.id} className="rounded-xl border border-richblack-700 bg-richblack-900/30 p-6 space-y-4 hover:border-richblack-600 transition-all">
                   <div className="flex gap-4">
                     <div className="bg-richblack-700 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-richblack-5 shrink-0">{idx + 1}</div>
-                    <input value={s.title} onChange={e => updateSection(idx, { title: e.target.value })} className="w-full bg-transparent border-b border-richblack-700 focus:border-yellow-50 outline-none text-richblack-5 font-semibold py-1 transition-all" placeholder="Section Title" />
+                    <input value={s.title || ""} onChange={e => updateSection(idx, { title: e.target.value })} className="w-full bg-transparent border-b border-richblack-700 focus:border-yellow-50 outline-none text-richblack-5 font-semibold py-1 transition-all" placeholder="Section Title" />
                   </div>
                   <div className="pl-12 space-y-3">
                     {s.lectures.map((l, lIdx) => (
                       <div key={l.id} className="flex items-center gap-3 rounded-lg bg-richblack-900 border border-richblack-700 px-4 py-3 group hover:border-richblack-500 transition-all">
                         <div className="text-richblack-500 text-[10px] font-bold">{lIdx + 1}</div>
-                        <input value={l.title} onChange={e => {
+                        <input value={l.title || ""} onChange={e => {
                           setData(d => ({ ...d, sections: d.sections.map((sec, i) => i === idx ? { ...sec, lectures: sec.lectures.map(ll => ll.id === l.id ? { ...ll, title: e.target.value } : ll) } : sec) }));
                         }} className="flex-1 bg-transparent outline-none text-sm text-richblack-25" placeholder="Lecture Title" />
                         <div className="flex items-center gap-2">
-                          <input type="number" value={l.duration || ""} onChange={e => {
-                            setData(d => ({ ...d, sections: d.sections.map((sec, i) => i === idx ? { ...sec, lectures: sec.lectures.map(ll => ll.id === l.id ? { ...ll, duration: e.target.value } : ll) } : sec) }));
+                          <input type="number" value={String(l.duration ?? "")} onChange={e => {
+                            const val = e.target.value === "" ? "" : Number(e.target.value);
+                            setData(d => ({ ...d, sections: d.sections.map((sec, i) => i === idx ? { ...sec, lectures: sec.lectures.map(ll => ll.id === l.id ? { ...ll, duration: val } : ll) } : sec) }));
                           }} className="w-12 bg-richblack-800 rounded px-1 py-0.5 text-center text-[10px] text-richblack-25 outline-none" placeholder="Min" />
                           <span className="text-[10px] text-richblack-500 font-bold uppercase">MIN</span>
                         </div>
@@ -584,7 +653,7 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                     <label className="block text-sm font-semibold text-richblack-5">Price (₹) <span className="text-pink-200">*</span></label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-richblack-400 font-bold">₹</span>
-                      <input type="number" value={data.price} onChange={e => update('price', e.target.value)} placeholder="e.g. 1999" className="w-full pl-10 pr-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25 font-bold" />
+                      <input type="number" value={data.price ?? ""} onChange={e => update('price', e.target.value)} placeholder="e.g. 1999" className="w-full pl-10 pr-4 py-3 text-sm rounded-lg bg-richblack-900 border border-richblack-700 focus:border-yellow-50 outline-none text-richblack-25 font-bold" />
                     </div>
                   </div>
                 )}

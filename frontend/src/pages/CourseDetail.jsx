@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { 
   Star, Users, Clock, Play, Heart, Share2, CheckCircle, 
@@ -7,55 +8,197 @@ import {
 } from 'lucide-react';
 import Footer from '../components/common/Footer';
 import { supabase } from '../config/supabaseClient';
+import { toast } from 'react-hot-toast';
+import { FaSpinner } from 'react-icons/fa';
+import PaymentModalSecure from '../components/PaymentModalSecure';
 
 const bgPattern = {
   backgroundImage: `url("data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%239C92AC\" fill-opacity=\"0.05\"%3E%3Cpath d=\"M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
 };
 
+function CourseVideoPlayer({ courseData, isEnrolled }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const isFree = courseData.is_free || Number(courseData.price) === 0;
+  const videoId = courseData.preview_video_id || courseData.youtube_video_id;
+  const thumbnail = courseData.thumbnail || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
+
+  const canWatch = isFree || isEnrolled;
+
+  if (!videoId) {
+    return (
+      <div className="relative aspect-video w-full bg-[#111625] overflow-hidden">
+        <img src={thumbnail} alt={courseData.course_name} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+
+  if (isPlaying && canWatch) {
+    return (
+      <div className="relative aspect-video w-full bg-black overflow-hidden">
+        <iframe
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&modestbranding=1&rel=0`}
+          title="Course Preview Video"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          className="w-full h-full animate-fadeIn"
+        ></iframe>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative aspect-video w-full bg-[#111625] overflow-hidden group">
+      <img src={thumbnail} alt={courseData.course_name} className="w-full h-full object-cover" />
+      
+      {canWatch ? (
+        // Playable Preview Overlay
+        <button
+          onClick={() => setIsPlaying(true)}
+          className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 hover:bg-black/55 transition-all duration-300"
+        >
+          <div className="w-16 h-16 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-2xl">
+            <Play className="h-6 w-6 text-white ml-1 fill-current" />
+          </div>
+          <span className="absolute bottom-4 left-4 text-[10px] font-black uppercase tracking-wider text-white bg-purple-600/80 border border-purple-500/30 px-3 py-1 rounded-full shadow-lg">
+            Free Preview
+          </span>
+        </button>
+      ) : (
+        // Locked Preview Overlay
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-[3px] p-4 text-center">
+          <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-3 shadow-lg">
+            <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <span className="text-sm font-black text-white tracking-widest uppercase">Enroll to Watch</span>
+          <span className="text-[10px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">This video is only available for enrolled students.</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const CourseDetail = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Redux Token & Profile Auth Selector
+  const { user } = useSelector((state) => state.profile);
+  const { token } = useSelector((state) => state.auth);
+  
   const [courseData, setCourseData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState(null);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const searchParams = new URLSearchParams(location.search);
+  const shouldAutoEnroll = searchParams.get("enroll") === "true";
 
   useEffect(() => {
     const fetchCourseDetails = async () => {
       try {
-        console.log('[CourseDetail] Fetching course details for id:', courseId);
+        console.log('[CourseDetail] Fetching course details for id/slug:', courseId);
         setLoading(true);
         
-        // Fetch course from Supabase
-        const { data: course, error: courseError } = await supabase
+        const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(courseId);
+        
+        let query = supabase
           .from("courses")
           .select(`
             *,
-            instructor:instructor_id(first_name, last_name, avatar_url, image)
-          `)
-          .eq("id", courseId)
-          .single();
+            instructor:instructor_id(first_name, last_name, avatar_url, image, about)
+          `);
+          
+        if (isUUID) {
+          query = query.eq("id", courseId);
+        } else {
+          query = query.eq("slug", courseId);
+        }
+        
+        const { data: course, error: courseError } = await query.single();
+        if (courseError || !course) throw courseError || new Error("Course not found");
 
-        if (courseError) throw courseError;
-        console.log('[CourseDetail] Course data:', course);
+        // Fetch curriculum sections from Supabase using resolved course UUID
+        const { data: sectionsData, error: secError } = await supabase
+          .from("course_sections")
+          .select("*")
+          .eq("course_id", course.id)
+          .order("position", { ascending: true });
 
-        // Enrich course data with the same fields used in ExploreCourses
+        if (secError) throw secError;
+
+        // Fetch lessons from Supabase using resolved course UUID
+        const { data: lessonsData, error: lesError } = await supabase
+          .from("course_lessons")
+          .select("*")
+          .eq("course_id", course.id)
+          .order("position", { ascending: true });
+
+        if (lesError) throw lesError;
+
+        // Map lessons to sections dynamically to resolve blank Course Content issue
+        const formattedSections = (sectionsData || []).map(section => ({
+          ...section,
+          section_name: section.title,
+          sub_sections: (lessonsData || [])
+            .filter(lesson => lesson.section_id === section.id)
+            .map(lesson => ({
+              ...lesson,
+              time_duration: lesson.duration_seconds ? `${Math.round(lesson.duration_seconds / 60)} min` : "5 min"
+            }))
+        }));
+
+        // Enrich course data with dynamic values, requirements, and outcomes
         const enrichedCourse = {
           ...course,
           course_name: course.title,
           course_description: course.description,
-          enrolled_students_count: course.sold_count || 0,
+          enrolled_students_count: course.enrollment_count || 0,
           instructor: course.instructor || {
             first_name: "Instructor",
             last_name: "",
             avatar_url: null,
             image: null
           },
-          what_you_will_learn: [],
-          sections: [],
-          instructions: []
+          what_you_will_learn: Array.isArray(course.what_you_will_learn)
+            ? course.what_you_will_learn
+            : Array.isArray(course.learning_outcomes)
+            ? course.learning_outcomes
+            : typeof (course.what_you_will_learn || course.learning_outcomes) === 'string'
+            ? (course.what_you_will_learn || course.learning_outcomes).split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+            : [],
+          sections: formattedSections,
+          instructions: Array.isArray(course.instructions)
+            ? course.instructions
+            : Array.isArray(course.requirements)
+            ? course.requirements
+            : typeof (course.instructions || course.requirements) === 'string'
+            ? (course.instructions || course.requirements).split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+            : []
         };
 
         setCourseData(enrichedCourse);
+
+        // Check user enrollment state safely using correct database student_id column and course UUID
+        let enrolled = false;
+        if (user) {
+          const { data: enrollData, error: enrollError } = await supabase
+            .from("enrollments")
+            .select("id")
+            .eq("course_id", course.id)
+            .eq("student_id", user.id)
+            .eq("enrollment_status", "active")
+            .maybeSingle();
+
+          if (!enrollError && enrollData) {
+            enrolled = true;
+          }
+        }
+        setIsEnrolled(enrolled);
       } catch (error) {
         console.error('[CourseDetail] Error fetching course details:', error);
       } finally {
@@ -65,12 +208,76 @@ const CourseDetail = () => {
     if (courseId) {
       fetchCourseDetails();
     }
-  }, [courseId]);
+  }, [courseId, user]);
+
+  useEffect(() => {
+    if (shouldAutoEnroll && token && user && courseData && !loading && !isEnrolled) {
+      // Clear the query param
+      navigate(location.pathname, { replace: true });
+      handleEnrollment();
+    }
+  }, [shouldAutoEnroll, token, user, courseData, loading, isEnrolled]);
+
+  // Handler for Checkout & Enrollments
+  const handleEnrollment = async () => {
+    const activeToken = token || localStorage.getItem("token");
+    if (!activeToken || !user) {
+      toast.error("Please login to enroll in this course");
+      navigate('/login', { state: { from: `/courses/${courseId}?enroll=true` } });
+      return;
+    }
+
+    try {
+      const isFree = courseData.is_free || Number(courseData.price) === 0;
+      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:4000/api/v1';
+
+      if (isFree) {
+        // FREE COURSE - Direct enrollment
+        toast.loading("Enrolling you instantly in this free course...");
+        
+        const response = await fetch(`${baseUrl}/course/enroll/free/${courseData.id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${activeToken}`
+          }
+        });
+        
+        const resData = await response.json();
+        toast.dismiss();
+
+        if (resData.success) {
+          toast.success("Enrolled successfully! Enjoy start learning!");
+          setIsEnrolled(true);
+          navigate(`/learn/${courseData.id}`);
+        } else {
+          toast.error(resData.message || "Failed to process free enrollment");
+        }
+      } else {
+        // PAID COURSE - Open payment modal (Razorpay will handle enrollment after payment)
+        setShowPaymentModal(true);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.dismiss();
+      toast.error("Failed to process transaction checkout");
+    }
+  };
+
+  // Handle successful payment and enrollment
+  const handlePaymentSuccess = (enrollment) => {
+    setIsEnrolled(true);
+    setShowPaymentModal(false);
+    toast.success("Payment successful! Redirecting to course...");
+    setTimeout(() => {
+      navigate(`/learn/${courseData.id}`);
+    }, 1000);
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0B1020] flex items-center justify-center">
-        <div className="spinner"></div>
+        <FaSpinner className="text-purple-500 text-5xl animate-spin" />
       </div>
     );
   }
@@ -173,17 +380,8 @@ const CourseDetail = () => {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="sticky top-8 bg-[#1A1F36] border border-white/10 rounded-2xl overflow-hidden"
               >
-                <div className="relative">
-                  <img
-                    src={courseData.thumbnail || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'}
-                    alt={courseData.course_name}
-                    className="w-full h-48 object-cover"
-                  />
-                  <button className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/50 transition-colors">
-                    <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                      <Play className="h-8 w-8 text-white ml-1" />
-                    </div>
-                  </button>
+                <div className="relative overflow-hidden">
+                  <CourseVideoPlayer courseData={courseData} isEnrolled={isEnrolled} />
                 </div>
 
                 <div className="p-6">
@@ -205,8 +403,11 @@ const CourseDetail = () => {
                     )}
                   </div>
 
-                  <button className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl text-white font-bold text-lg hover:opacity-90 transition-opacity mb-4">
-                    Enroll Now
+                  <button 
+                    onClick={isEnrolled ? () => navigate(`/learn/${courseId}`) : handleEnrollment}
+                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl text-white font-bold text-lg hover:opacity-90 transition-opacity mb-4"
+                  >
+                    {isEnrolled ? "Go to Classroom" : (courseData.is_free || Number(courseData.price) === 0 ? "Start Learning Free" : "Buy Now")}
                   </button>
 
                   <div className="flex gap-2 mb-6">
@@ -376,6 +577,15 @@ const CourseDetail = () => {
       </div>
 
       <Footer />
+
+      {/* Payment Modal for Paid Courses */}
+      {showPaymentModal && courseData && (
+        <PaymentModalSecure
+          course={courseData}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 };

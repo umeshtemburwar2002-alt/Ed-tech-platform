@@ -26,9 +26,10 @@ function OpenRoute({ children }) {
   if (!token) return children;
 
   // Logged in → send to their dashboard (never stay on login/signup)
-  if (user?.accountType === "Instructor") return <Navigate to="/dashboard/instructor" replace />;
-  if (user?.accountType === "Admin")      return <Navigate to="/admin/dashboard"      replace />;
-  return                                         <Navigate to="/dashboard/my-profile" replace />;
+  const role = String(user?.accountType || "").toLowerCase();
+  if (role === "instructor" || role === "teacher") return <Navigate to="/dashboard/instructor" replace />;
+  if (role === "admin")                            return <Navigate to="/admin/dashboard"      replace />;
+  return                                                 <Navigate to="/dashboard/my-profile" replace />;
 }
 
 export default OpenRoute;

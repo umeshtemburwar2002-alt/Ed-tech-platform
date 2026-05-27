@@ -14,8 +14,6 @@ import { useOnboardingRedirect } from '../../onboarding/InstructorOnboarding';
 const InstructorDashboardLayout = () => {
   const location = useLocation();
   const { checking } = useOnboardingRedirect();
-  
-  console.log("[InstructorDashboardLayout] checking:", checking);
 
   if (checking) {
     return (

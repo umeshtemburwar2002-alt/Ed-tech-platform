@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { id: "course-builder",   label: "Course Builder",    icon: FileText,        path: "/dashboard/instructor/course-builder" },
   { id: "course-analytics", label: "Course Analytics",  icon: BarChart2,       path: "/dashboard/instructor/analytics" },
   { id: "students",         label: "Students",          icon: Users,           path: "/dashboard/instructor/student-progress" },
+  { id: "enrollments",      label: "Enrollments",       icon: ClipboardList,   path: "/dashboard/instructor/enrollments" },
   { id: "assignments",      label: "Assignments",       icon: ClipboardList,   path: "/dashboard/instructor/assignments" },
   { id: "quizzes",          label: "Quizzes",           icon: HelpCircle,      path: "/dashboard/instructor/quizzes" },
   { id: "certificates",     label: "Certificates",      icon: Award,           path: "/dashboard/instructor/certificates" },

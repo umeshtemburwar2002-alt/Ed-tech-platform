@@ -10,6 +10,13 @@ const {
     editCourse,
     getInstructorCourses,
     deleteCourse,
+    enrollFreeCourse,
+    enrollPaidCourse,
+    checkCourseEnrollment,
+    getCourseSyllabus,
+    updateLectureProgress,
+    getStudentEnrolledCourses,
+    getStudentContinueLearning,
 } = require("../controllers/Course");
 
 // Category Controllers
@@ -45,7 +52,7 @@ const {
 } = require("../controllers/CourseProgress");
 
 // Middlewares
-const { auth, isInstructor, isStudent, isAdmin } = require("../middleware/auth");
+const { auth, isInstructor, isStudent, isAdmin, verifyEnrollment } = require("../middleware/auth");
 
 // ********************************************************************************************************
 //                                      Course routes
@@ -93,5 +100,31 @@ router.post("/getCategoryPageDetails", categoryPageDetails);
 router.post("/createRating", auth, isStudent, createRating);
 router.get("/getAverageRating", getAverageRating);
 router.get("/getReviews", getAllRating);
+
+// ============================================================================
+// STUDENT ENROLLMENT & SECURE LESSON ACCESS ROUTES
+// ============================================================================
+
+// Enroll in Free Course
+router.post("/enroll/free/:courseId", auth, isStudent, enrollFreeCourse);
+
+// Enroll in Paid Course (after payment verification)
+router.post("/enroll/paid/:courseId", auth, isStudent, enrollPaidCourse);
+
+// Check active enrollment status
+router.get("/enroll/check/:courseId", auth, checkCourseEnrollment);
+router.get("/enrollment-status/:courseId", auth, checkCourseEnrollment);
+
+// Fetch syllabus & lesson metadata securely (Gated by verification middleware!)
+router.get("/learn/:courseId", auth, verifyEnrollment, getCourseSyllabus);
+
+// Update lecture completion checklists
+router.post("/lecture/progress", auth, isStudent, updateLectureProgress);
+
+// Get courses the student is currently enrolled in
+router.get("/student/my-courses", auth, isStudent, getStudentEnrolledCourses);
+
+// Retrieve student's continue learning progress bookmark
+router.get("/student/continue-learning", auth, isStudent, getStudentContinueLearning);
 
 module.exports = router;

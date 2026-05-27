@@ -90,7 +90,8 @@ export async function uploadThumbnail(instructorId, courseId, file, onProgress) 
   if (validationError) return { url: null, error: validationError };
 
   const ext  = file.name.split(".").pop();
-  const path = `${instructorId}/${courseId}/thumbnail.${ext}`;
+  // Conforms perfectly to the 3-level folder ownership check: auth.uid()/course/courseId/thumbnail_timestamp.ext
+  const path = `${instructorId}/course/${courseId}/thumbnail_${Date.now()}.${ext}`;
   return uploadFile(THUMBNAIL_BUCKET, path, file, onProgress);
 }
 

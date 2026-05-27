@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Search, Filter, Star, Users, Clock, Tag, Heart, Share2 } from 'lucide-react';
 import RatingStars from '../components/common/RatingStars';
 import Footer from '../components/common/Footer';
+import CourseCard from '../components/common/CourseCard';
 import { supabase } from '../config/supabaseClient';
 
 const bgPattern = {
@@ -36,6 +37,14 @@ const ExploreCourses = () => {
             status,
             created_at,
             sold_count,
+            is_free,
+            preview_video_url,
+            preview_video_id,
+            preview_video_thumbnail,
+            preview_video_embed_url,
+            video_provider,
+            preview_duration,
+            preview_type,
             instructor:instructor_id(first_name, last_name, avatar_url, image)
           `)
           .eq("status", "published")

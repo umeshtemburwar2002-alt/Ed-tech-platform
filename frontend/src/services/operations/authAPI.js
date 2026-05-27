@@ -121,7 +121,7 @@ export function resendSignupConfirmation(email) {
   };
 }
 
-export function login(email, password, navigate, selectedRole = null) {
+export function login(email, password, navigate, selectedRole = null, customRedirect = null) {
   return async (dispatch) => {
     const toastId = toast.loading("Signing in...");
     dispatch(setLoading(true));
@@ -183,7 +183,9 @@ export function login(email, password, navigate, selectedRole = null) {
       persistClientSession(accessToken, appUser);
       toast.success("Login successful");
 
-      if (appUser.accountType?.toLowerCase() === "admin") {
+      if (customRedirect) {
+        navigate(customRedirect);
+      } else if (appUser.accountType?.toLowerCase() === "admin") {
         navigate("/admin/dashboard");
       } else if (appUser.accountType?.toLowerCase() === "instructor") {
         navigate("/instructor/setup");

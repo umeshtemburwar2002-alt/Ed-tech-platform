@@ -9,7 +9,7 @@
  * and read back in OAuthCallback.jsx to set account_type.
  */
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
 import { login } from "../services/operations/authAPI";
@@ -31,8 +31,10 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const loading = useSelector((state) => state.auth.loading);
+  const customRedirect = location.state?.from || null;
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -55,7 +57,11 @@ const Login = () => {
     e.preventDefault();
     // Store role so email login also knows what dashboard to go to
     sessionStorage.setItem(OAUTH_ROLE_KEY, selectedRole);
-    dispatch(login(formData.email, formData.password, navigate, selectedRole));
+    // If there is an intended redirect, store it in sessionStorage for OAuth callback fallback
+    if (customRedirect) {
+      sessionStorage.setItem("intended_redirect", customRedirect);
+    }
+    dispatch(login(formData.email, formData.password, navigate, selectedRole, customRedirect));
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────

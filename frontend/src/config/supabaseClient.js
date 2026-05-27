@@ -3,17 +3,35 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// Fail-fast validation
-if (!supabaseUrl || supabaseUrl.includes("your-project-id")) {
+// Enhanced validation with better error messages
+if (!supabaseUrl) {
+  console.error("[supabaseClient] REACT_APP_SUPABASE_URL is missing from environment variables");
   throw new Error(
-    "REACT_APP_SUPABASE_URL is missing or still a placeholder. " +
+    "REACT_APP_SUPABASE_URL is missing. " +
       "Check frontend/.env and restart your dev server."
   );
 }
 
-if (!supabaseKey || supabaseKey.includes("your-anon")) {
+if (supabaseUrl.includes("your-project-id")) {
+  console.error("[supabaseClient] REACT_APP_SUPABASE_URL is still a placeholder");
   throw new Error(
-    "REACT_APP_SUPABASE_ANON_KEY is missing or still a placeholder. " +
+    "REACT_APP_SUPABASE_URL is still a placeholder. " +
+      "Check frontend/.env and restart your dev server."
+  );
+}
+
+if (!supabaseKey) {
+  console.error("[supabaseClient] REACT_APP_SUPABASE_ANON_KEY is missing from environment variables");
+  throw new Error(
+    "REACT_APP_SUPABASE_ANON_KEY is missing. " +
+      "Check frontend/.env and restart your dev server."
+  );
+}
+
+if (supabaseKey.includes("your-anon")) {
+  console.error("[supabaseClient] REACT_APP_SUPABASE_ANON_KEY is still a placeholder");
+  throw new Error(
+    "REACT_APP_SUPABASE_ANON_KEY is still a placeholder. " +
       "Check frontend/.env and restart your dev server."
   );
 }

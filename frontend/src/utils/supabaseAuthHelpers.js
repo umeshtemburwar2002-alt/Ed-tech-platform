@@ -10,9 +10,7 @@ export function defaultAvatar(firstName, lastName) {
 
 /** Map `public.profiles` row (+ optional snake_case fallback) into app `user` shape. */
 export function profileRowToAppUser(profile) {
-  console.log("[supabaseAuthHelpers] profileRowToAppUser called with profile:", profile);
   if (!profile) {
-    console.log("[supabaseAuthHelpers] profileRowToAppUser: profile is null, returning null");
     return null;
   }
 
@@ -22,8 +20,6 @@ export function profileRowToAppUser(profile) {
   const rawFullName  = (profile.full_name  ?? "").trim();
   const rawFirstName = (profile.first_name ?? profile.firstName ?? "").trim();
   const rawLastName  = (profile.last_name  ?? profile.lastName  ?? "").trim();
-
-  console.log("[supabaseAuthHelpers] profileRowToAppUser names:", { rawFullName, rawFirstName, rawLastName });
 
   let firstName, lastName, fullName;
 
@@ -50,8 +46,6 @@ export function profileRowToAppUser(profile) {
   else if (raw === "admin" || raw === ACCOUNT_TYPE.ADMIN.toLowerCase())
     accountType = ACCOUNT_TYPE.ADMIN;
 
-  console.log("[supabaseAuthHelpers] profileRowToAppUser accountType:", accountType);
-
   const image =
     profile.image ||
     profile.avatar_url ||
@@ -70,16 +64,13 @@ export function profileRowToAppUser(profile) {
     about:       profile.about ?? "",
   };
 
-  console.log("[supabaseAuthHelpers] profileRowToAppUser returning:", result);
   return result;
 }
 
 /** Build app user from Supabase session + optional `profiles` row (PRD: JWT + profile). */
 export function buildAppUserFromSession(session, profile) {
-  console.log("[supabaseAuthHelpers] buildAppUserFromSession called with session:", !!session, "profile:", !!profile);
   const u  = session?.user;
   const md = u?.user_metadata ?? {};
-  console.log("[supabaseAuthHelpers] buildAppUserFromSession user:", u, "metadata:", md);
 
   // ── Extract name from JWT metadata ───────────────────────────────────────
   // raw_user_meta_data always has the name entered during signup or from OAuth.
@@ -92,8 +83,6 @@ export function buildAppUserFromSession(session, profile) {
   const metaFirstName = (md.firstName || md.first_name || "").trim();
   const metaLastName  = (md.lastName  || md.last_name  || "").trim();
 
-  console.log("[supabaseAuthHelpers] buildAppUserFromSession meta names:", { metaFullName, metaFirstName, metaLastName });
-
   // Derive first/last from metaFullName if it's available
   const metaParts = metaFullName.split(" ");
   const jwtFirst  = metaFullName ? (metaParts[0] || "")                  : metaFirstName;
@@ -102,14 +91,12 @@ export function buildAppUserFromSession(session, profile) {
 
   // ── Build from profiles row ───────────────────────────────────────────────
   const rowUser = profileRowToAppUser(profile);
-  console.log("[supabaseAuthHelpers] buildAppUserFromSession rowUser:", rowUser);
 
   if (rowUser) {
     // Profile exists — use it for role + id + email (most authoritative).
     // But ONLY use its name if it's actually populated.
     // Supabase's default trigger sets first_name='' — we must fall back to JWT.
     const nameIsEmpty = !rowUser.firstName && !rowUser.full_name;
-    console.log("[supabaseAuthHelpers] buildAppUserFromSession nameIsEmpty:", nameIsEmpty);
 
     if (nameIsEmpty && jwtFirst) {
       // Profile has empty name but JWT has the real name → merge
@@ -120,18 +107,15 @@ export function buildAppUserFromSession(session, profile) {
         full_name: jwtFull,
         image:     rowUser.image || md.avatar_url || md.picture || defaultAvatar(jwtFirst, jwtLast),
       };
-      console.log("[supabaseAuthHelpers] buildAppUserFromSession returning merged result:", result);
       return result;
     }
 
     // Profile has a real name → return as-is
-    console.log("[supabaseAuthHelpers] buildAppUserFromSession returning rowUser:", rowUser);
     return rowUser;
   }
 
   // ── No profile row at all — build entirely from JWT ───────────────────────
   if (!u) {
-    console.log("[supabaseAuthHelpers] buildAppUserFromSession: no user in session, returning null");
     return null;
   }
 
@@ -154,7 +138,6 @@ export function buildAppUserFromSession(session, profile) {
     image:      md.avatar_url || md.picture || defaultAvatar(jwtFirst, jwtLast),
     provider:   u.app_metadata?.provider ?? "email",
   };
-  console.log("[supabaseAuthHelpers] buildAppUserFromSession returning JWT-only result:", result);
   return result;
 }
 

@@ -8,7 +8,7 @@ import { useLocation } from "react-router-dom";
 import OpenRoute from "./components/core/auth/OpenRoute";
 import PrivateRoute from "./components/core/auth/PrivateRoute";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { ACCOUNT_TYPE } from "./utils/constants";
 import RoleRoute from "./components/core/auth/RoleRoute";
 import AppSkeleton from "./components/core/Loaders/AppSkeleton";
@@ -123,6 +123,8 @@ const StudentFeedback = React.lazy(() => import("./pages/student-dashboard/Feedb
 const StudentNotifications = React.lazy(() => import("./pages/student-dashboard/Notifications"));
 const StudentCertificates = React.lazy(() => import("./pages/student-dashboard/Certificates"));
 const StudentSupportPage = React.lazy(() => import("./pages/student-dashboard/Support"));
+const MyPurchases = React.lazy(() => import("./pages/student-dashboard/MyPurchases"));
+const AdminEnrollmentDashboard = React.lazy(() => import("./pages/AdminEnrollmentDashboard"));
 
 const EnrolledCourses = React.lazy(() => import("./components/core/Dashboard/EnrolledCourses"));
 const DashboardCart = React.lazy(() => import("./components/core/Dashboard/Cart"));
@@ -177,6 +179,7 @@ const InstructorMessages = LazyInstructorFeature("InstructorMessages");
 function App() {
   const dispatch = useDispatch();
   const location = useLocation();
+  const { user } = useSelector((state) => state.profile);
   
   useEffect(() => {
     const unsubscribe = subscribeSupabaseAuthToStore(dispatch);
@@ -221,6 +224,7 @@ function App() {
           <Route path="users" element={<AdminUsers />} />
           <Route path="courses" element={<AdminCourses />} />
           <Route path="reports" element={<AdminReports />} />
+          <Route path="enrollments" element={<AdminEnrollmentDashboard userId={user?.id} userRole="admin" />} />
         </Route>
         <Route path="/403" element={<Forbidden403 />} />
         
@@ -277,6 +281,7 @@ function App() {
           <Route path="dashboard/support" element={<StudentSupportPage />} />
           <Route path="dashboard/my-tickets" element={<MyTickets />} />
           <Route path="dashboard/billing" element={<StudentDashboardHome />} />
+          <Route path="dashboard/purchase-history" element={<MyPurchases />} />
           <Route path="dashboard/settings" element={<Settings />} />
           <Route path="dashboard/cart" element={<DashboardCart />} />
         </Route>
@@ -325,6 +330,7 @@ function App() {
           <Route path="dashboard/instructor/attendance"         element={<InstructorAttendance />} />
           <Route path="dashboard/instructor/certificates"       element={<InstructorCertificates />} />
           <Route path="dashboard/instructor/support"       element={<InstructorSupport />} />
+          <Route path="dashboard/instructor/enrollments"   element={<AdminEnrollmentDashboard userId={user?.id} userRole="instructor" />} />
         </Route>
       
       {/* Auth Routes */}
@@ -345,11 +351,15 @@ function App() {
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
 
-      <Route path="/course/:courseId" element={<CourseDetails />} />
+      <Route path="/course/:courseId" element={<CourseDetail />} />
 
     {/* Course Viewing Routes */}
     <Route
       path="view-course/:courseId"
+      element={<PrivateRoute><ViewCourse /></PrivateRoute>}
+    />
+    <Route
+      path="learn/:courseId"
       element={<PrivateRoute><ViewCourse /></PrivateRoute>}
     />
 

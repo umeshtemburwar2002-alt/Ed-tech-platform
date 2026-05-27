@@ -85,6 +85,14 @@ export const sidebarLinks = [
     description: "Join study groups, collaborate with peers, and participate in discussions"
   },
   {
+    id: 12,
+    name: "My Purchases",
+    path: "/dashboard/purchase-history",
+    type: ACCOUNT_TYPE.STUDENT,
+    icon: "VscHistory",
+    description: "View payment history, invoices, and transaction logs"
+  },
+  {
     id: 11,
     name: "Settings",
     path: "/dashboard/settings",

@@ -8,9 +8,10 @@ const {
   COURSE_PAYMENT_API,
   COURSE_VERIFY_API,
   SEND_PAYMENT_SUCCESS_EMAIL_API,
+  PAYMENT_HISTORY_API,
 } = studentEndpoints
 
-// Load the Razorpay SDK
+// Load the Razorpay SDK script dynamically
 function loadScript(src) {
   return new Promise((resolve) => {
     const script = document.createElement("script")
@@ -25,6 +26,7 @@ function loadScript(src) {
   })
 }
 
+// 1. Buy Course Flow (Launches Checkout Modal)
 export async function BuyCourse(
   token,
   courses,
@@ -32,99 +34,122 @@ export async function BuyCourse(
   navigate,
   dispatch
 ) {
-  const toastId = toast.loading("Loading...")
+  const toastId = toast.loading("Connecting to checkout gateway...")
   try {
-    // Loading the script of Razorpay SDK
+    // Load Razorpay SDK
     const res = await loadScript("https://checkout.razorpay.com/v1/checkout.js")
 
     if (!res) {
-      toast.error(
-        "Razorpay SDK failed to load. Check your Internet Connection."
-      )
+      toast.error("Razorpay SDK failed to load. Please check your internet connection.")
       return
     }
 
-    // Initiating the order in Backend
+    // Capture the payment and create the order on backend
     const orderResponse = await apiConnector(
       "POST",
       COURSE_PAYMENT_API,
-      {
-        courses,
-      },
-      {
-        Authorization: `Bearer ${token}`,
-      }
+      { courses },
+      { Authorization: `Bearer ${token}` }
     )
 
     if (!orderResponse.data.success) {
       throw new Error(orderResponse.data.message)
     }
-    console.log("PAYMENT RESPONSE FROM BACKEND............", orderResponse.data)
 
-    // Opening Razorpay SDK (DUMMY for now, but keeping the flow)
-    // In a real scenario, you'd use the orderId from orderResponse.data
+    const orderData = orderResponse.data;
+    const razorpayKey = process.env.REACT_APP_RAZORPAY_KEY_ID;
+
+    // Razorpay standard parameters config
     const options = {
-      key: process.env.RAZORPAY_KEY,
-      currency: orderResponse.data.currency,
-      amount: `${orderResponse.data.totalAmount}`,
-      order_id: orderResponse.data.orderId,
+      key: razorpayKey || "rzp_test_placeholder",
+      currency: orderData.currency,
+      amount: `${orderData.amount}`,
+      order_id: orderData.orderId,
       name: "EdTech Platform",
-      description: "Thank you for purchasing the course.",
+      description: "Secure Checkout Portal for course enrollment",
+      image: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=120&h=120&fit=crop",
       prefill: {
-        name: `${user_details.firstName} ${user_details.lastName}`,
-        email: user_details.email,
+        name: user_details ? `${user_details.firstName || ""} ${user_details.lastName || ""}`.trim() : "Student",
+        email: user_details?.email || "",
+      },
+      theme: {
+        color: "#6366F1", // Sleek modern indigo purple theme
       },
       handler: function (response) {
-        sendPaymentSuccessEmail(response, orderResponse.data.totalAmount, token)
+        // Successful payment callback handler
+        sendPaymentSuccessEmail(response, orderData.amount, token)
         verifyPayment({ ...response, courses }, token, navigate, dispatch)
       },
     }
 
-    // For DUMMY flow, we skip actual Razorpay popup and call handler directly
-    // This makes it "working" for the user without real credentials
-    setTimeout(() => {
-        const response = {
-            razorpay_payment_id: "pay_dummy_" + Date.now(),
-            razorpay_order_id: orderResponse.data.orderId,
-            razorpay_signature: "sig_dummy_" + Date.now()
-        };
-        options.handler(response);
-    }, 1000);
+    toast.dismiss(toastId)
+
+    // GRACEFUL SANDBOX FALLBACK:
+    // If the Razorpay key is missing or set to placeholder/test, run in Sandbox Simulation Mode
+    const isMockKey = !razorpayKey || razorpayKey.startsWith("rzp_test_placeholder") || razorpayKey === "your_razorpay_key";
+
+    if (isMockKey) {
+      toast.success("Razorpay credentials absent. Launching checkout sandbox simulator...")
+      
+      setTimeout(() => {
+        const mockResponse = {
+          razorpay_payment_id: "pay_sim_" + Math.random().toString(36).substr(2, 9),
+          razorpay_order_id: orderData.orderId,
+          razorpay_signature: "sig_sim_" + Math.random().toString(36).substr(2, 9)
+        }
+        
+        // Directly trigger verification signature bypass (creates correct secure records)
+        options.handler(mockResponse)
+      }, 1500)
+    } else {
+      // Launch standard Razorpay SDK popup modal
+      const paymentObject = new window.Razorpay(options)
+      paymentObject.open()
+      
+      paymentObject.on("payment.failed", function (response) {
+        toast.error("Checkout Payment Failed: " + response.error.description)
+        console.error("Razorpay error info:", response.error)
+      })
+    }
 
   } catch (error) {
-    console.log("PAYMENT API ERROR............", error)
-    toast.error("Could Not make Payment")
+    console.error("PAYMENT API ERROR............", error)
+    toast.error(error.message || "Failed to initialize payment gateway")
+    toast.dismiss(toastId)
   }
-  toast.dismiss(toastId)
 }
 
-// Verify Payment
+// 2. Verify Signature & Provision Course Access
 async function verifyPayment(body, token, navigate, dispatch) {
-  const toastId = toast.loading("Verifying Payment...")
+  const toastId = toast.loading("Verifying transaction credentials...")
   dispatch(setPaymentLoading(true))
   try {
-    const response = await apiConnector("POST", COURSE_VERIFY_API, body, {
-      Authorization: `Bearer ${token}`,
-    })
-
-    console.log("VERIFY PAYMENT RESPONSE FROM BACKEND............", response)
+    const response = await apiConnector(
+      "POST", 
+      COURSE_VERIFY_API, 
+      body, 
+      { Authorization: `Bearer ${token}` }
+    )
 
     if (!response.data.success) {
       throw new Error(response.data.message)
     }
 
-    toast.success("Payment Successful. You are Added to the course")
-    navigate("/dashboard/enrolled-courses")
+    toast.dismiss(toastId)
+    toast.success("Payment authorized successfully! Welcome to the classroom.")
+    
     dispatch(resetCart())
+    navigate("/dashboard/enrolled-courses")
+    
   } catch (error) {
-    console.log("PAYMENT VERIFICATION ERROR............", error)
-    toast.error("Could Not Verify Payment")
+    console.error("PAYMENT VERIFICATION ERROR............", error)
+    toast.error(error.message || "Could not verify transaction signature")
+    toast.dismiss(toastId)
   }
-  toast.dismiss(toastId)
   dispatch(setPaymentLoading(false))
 }
 
-// Send Payment Success Email
+// 3. Send Success Receipt Confirmation Email
 async function sendPaymentSuccessEmail(response, amount, token) {
   try {
     await apiConnector(
@@ -135,11 +160,28 @@ async function sendPaymentSuccessEmail(response, amount, token) {
         paymentId: response.razorpay_payment_id,
         amount,
       },
-      {
-        Authorization: `Bearer ${token}`,
-      }
+      { Authorization: `Bearer ${token}` }
     )
   } catch (error) {
-    console.log("PAYMENT SUCCESS EMAIL ERROR............", error)
+    console.error("PAYMENT SUCCESS EMAIL ERROR............", error)
+  }
+}
+
+// 4. Retrieve Student Transaction logs
+export async function GetPaymentHistory(token) {
+  try {
+    const response = await apiConnector(
+      "GET",
+      PAYMENT_HISTORY_API,
+      null,
+      { Authorization: `Bearer ${token}` }
+    )
+    if (!response.data.success) {
+      throw new Error(response.data.message)
+    }
+    return response.data.data || []
+  } catch (error) {
+    console.error("GET PAYMENT HISTORY ERROR............", error)
+    return []
   }
 }

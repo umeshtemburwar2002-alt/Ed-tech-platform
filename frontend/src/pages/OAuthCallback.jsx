@@ -108,8 +108,10 @@ const OAuthCallback = () => {
       setStatus("success");
       toast.success(`Welcome! Signed in as ${accountType} 🎉`);
 
-      // ─── Step 4: Role-based redirect ───────────────────────────────────
-      const dest = getDashboardPath(accountType);
+      // ─── Step 4: Role-based redirect or intended redirect ──────────────
+      const intended = sessionStorage.getItem("intended_redirect");
+      sessionStorage.removeItem("intended_redirect");
+      const dest = intended || getDashboardPath(accountType);
       console.log("[OAuthCallback] Redirecting to:", dest);
       setTimeout(() => navigate(dest, { replace: true }), 1000);
     }

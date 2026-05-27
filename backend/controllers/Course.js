@@ -99,24 +99,72 @@ exports.getAllCourses = async (req, res) => {
 };
 
 // Get course details
+// Get course details (resolving blank course content and outcomes dynamically)
 exports.getCourseDetails = async (req, res) => {
     try {
         const { courseId } = req.body;
-        const { data: course, error } = await supabase
+        if (!courseId) {
+            return res.status(400).json({ success: false, message: "courseId is required" });
+        }
+
+        const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(courseId);
+        
+        let query = supabase
             .from('courses')
             .select(`
                 *,
                 instructor:instructor_id(*),
-                category:category_id(*),
-                sections:sections(*, sub_sections:sub_sections(*))
-            `)
-            .eq('id', courseId)
-            .single();
+                category:category_id(*)
+            `);
 
-        if (error) throw error;
+        if (isUUID) {
+            query = query.eq('id', courseId);
+        } else {
+            query = query.eq('slug', courseId);
+        }
 
-        // Calculate total duration (Simplified for Supabase refactor)
-        let totalDuration = "0m"; 
+        const { data: course, error } = await query.single();
+        if (error || !course) throw error || new Error("Course not found");
+
+        // Fetch course sections using resolved course UUID
+        const { data: sectionsData, error: sectionsError } = await supabase
+            .from('course_sections')
+            .select('*')
+            .eq('course_id', course.id)
+            .order('position', { ascending: true });
+
+        if (sectionsError) throw sectionsError;
+
+        // Fetch course lessons using resolved course UUID
+        const { data: lessonsData, error: lessonsError } = await supabase
+            .from('course_lessons')
+            .select('*')
+            .eq('course_id', course.id)
+            .order('position', { ascending: true });
+
+        if (lessonsError) throw lessonsError;
+
+        // Map lessons to sections to preserve frontend accordion format
+        const formattedSections = (sectionsData || []).map(section => ({
+            ...section,
+            section_name: section.title,
+            sub_sections: (lessonsData || [])
+                .filter(lesson => lesson.section_id === section.id)
+                .map(lesson => ({
+                    ...lesson,
+                    time_duration: lesson.duration_seconds ? `${Math.round(lesson.duration_seconds / 60)} min` : "5 min"
+                }))
+        }));
+
+        course.sections = formattedSections;
+
+        // Populate outcomes/requirements fallback structures
+        course.course_name = course.title;
+        course.course_description = course.description;
+        course.enrolled_students_count = course.enrollment_count || 0;
+
+        // Calculate total duration
+        let totalDuration = course.duration || "0m";
 
         return res.status(200).json({
             success: true,
@@ -244,18 +292,61 @@ exports.getFullCourseDetails = async (req, res) => {
             return res.status(400).json({ success: false, message: "courseId is required" });
         }
 
-        const { data: course, error } = await supabase
+        const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(courseId);
+        
+        let query = supabase
             .from("courses")
             .select(`
                 *,
                 instructor:instructor_id(*),
-                category:category_id(*),
-                sections:sections(*, sub_sections:sub_sections(*))
-            `)
-            .eq("id", courseId)
-            .single();
+                category:category_id(*)
+            `);
 
-        if (error) throw error;
+        if (isUUID) {
+            query = query.eq("id", courseId);
+        } else {
+            query = query.eq("slug", courseId);
+        }
+
+        const { data: course, error } = await query.single();
+        if (error || !course) throw error || new Error("Course not found");
+
+        // Fetch course sections using resolved course UUID
+        const { data: sectionsData, error: sectionsError } = await supabase
+            .from('course_sections')
+            .select('*')
+            .eq('course_id', course.id)
+            .order('position', { ascending: true });
+
+        if (sectionsError) throw sectionsError;
+
+        // Fetch course lessons using resolved course UUID
+        const { data: lessonsData, error: lessonsError } = await supabase
+            .from('course_lessons')
+            .select('*')
+            .eq('course_id', course.id)
+            .order('position', { ascending: true });
+
+        if (lessonsError) throw lessonsError;
+
+        // Map lessons to sections to preserve frontend accordion format
+        const formattedSections = (sectionsData || []).map(section => ({
+            ...section,
+            section_name: section.title,
+            sub_sections: (lessonsData || [])
+                .filter(lesson => lesson.section_id === section.id)
+                .map(lesson => ({
+                    ...lesson,
+                    time_duration: lesson.duration_seconds ? `${Math.round(lesson.duration_seconds / 60)} min` : "5 min"
+                }))
+        }));
+
+        course.sections = formattedSections;
+
+        // Map titles and details
+        course.course_name = course.title;
+        course.course_description = course.description;
+        course.enrolled_students_count = course.enrollment_count || 0;
 
         return res.status(200).json({
             success: true,
@@ -269,4 +360,409 @@ exports.getFullCourseDetails = async (req, res) => {
         });
     }
 };
+
+// ============================================================================
+// ENROLLMENT & ACCESS MANAGEMENT CONTROLLERS
+// ============================================================================
+
+// Enroll Student in FREE Course
+exports.enrollFreeCourse = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const studentId = req.user.id;
+
+        // Resolve courseId from slug if not UUID
+        const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(courseId);
+        let resolvedCourseId = courseId;
+        if (!isUUID) {
+            const { data: course } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('slug', courseId)
+                .maybeSingle();
+            if (!course) {
+                return res.status(404).json({ success: false, message: "Course not found" });
+            }
+            resolvedCourseId = course.id;
+        }
+
+        // 1. Check if already enrolled
+        const { data: existing } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('course_id', resolvedCourseId)
+            .eq('student_id', studentId)
+            .maybeSingle();
+
+        if (existing) {
+            return res.status(200).json({
+                success: true,
+                message: "You are already enrolled in this course.",
+                data: existing
+            });
+        }
+
+        // 2. Insert active free enrollment
+        const { data: enrollment, error } = await supabase
+            .from('enrollments')
+            .insert([{
+                student_id: studentId,
+                course_id: resolvedCourseId,
+                enrollment_status: 'active',
+                payment_status: 'paid',
+                payment_id: 'free_enroll_' + Date.now(),
+                enrollment_type: 'free',
+                active: true,
+                enrolled_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return res.status(201).json({
+            success: true,
+            message: "Enrolled in free course successfully!",
+            data: enrollment
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to process free course enrollment",
+            error: error.message
+        });
+    }
+};
+
+// Enroll Student in PAID Course (Simulates Checkout Flow)
+exports.enrollPaidCourse = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const studentId = req.user.id;
+
+        // Resolve courseId from slug if not UUID
+        const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(courseId);
+        let resolvedCourseId = courseId;
+        if (!isUUID) {
+            const { data: course } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('slug', courseId)
+                .maybeSingle();
+            if (!course) {
+                return res.status(404).json({ success: false, message: "Course not found" });
+            }
+            resolvedCourseId = course.id;
+        }
+
+        // 1. Check if already enrolled
+        const { data: existing } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('course_id', resolvedCourseId)
+            .eq('student_id', studentId)
+            .eq('enrollment_status', 'active')
+            .maybeSingle();
+
+        if (existing) {
+            return res.status(200).json({
+                success: true,
+                message: "You are already enrolled in this course.",
+                data: existing
+            });
+        }
+
+        // 2. Simulate payment validation and activate enrollment
+        const simulatedPaymentId = 'pay_sim_' + Math.random().toString(36).substr(2, 9);
+        const { data: enrollment, error } = await supabase
+            .from('enrollments')
+            .insert([{
+                student_id: studentId,
+                course_id: resolvedCourseId,
+                enrollment_status: 'active',
+                payment_status: 'paid',
+                payment_id: simulatedPaymentId,
+                enrollment_type: 'paid',
+                active: true,
+                enrolled_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return res.status(200).json({
+            success: true,
+            message: "Payment authorized and enrollment successfully activated!",
+            data: enrollment
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to process paid course enrollment",
+            error: error.message
+        });
+    }
+};
+
+// Check Student Enrollment Status
+exports.checkCourseEnrollment = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const studentId = req.user.id;
+
+        // Resolve courseId from slug if not UUID
+        const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(courseId);
+        let resolvedCourseId = courseId;
+        if (!isUUID) {
+            const { data: course } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('slug', courseId)
+                .maybeSingle();
+            if (!course) {
+                return res.status(404).json({ success: false, message: "Course not found" });
+            }
+            resolvedCourseId = course.id;
+        }
+
+        const { data: enrollment, error } = await supabase
+            .from('enrollments')
+            .select('*')
+            .eq('course_id', resolvedCourseId)
+            .eq('student_id', studentId)
+            .eq('enrollment_status', 'active')
+            .maybeSingle();
+
+        if (error) throw error;
+
+        return res.status(200).json({
+            success: true,
+            enrolled: !!enrollment,
+            data: enrollment || null
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to check enrollment status",
+            error: error.message
+        });
+    }
+};
+
+// Get Full Gated Syllabus for Enrolled Students (Features secure masking checks!)
+exports.getCourseSyllabus = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const studentId = req.user.id;
+
+        // Resolve courseId from slug if not UUID
+        const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(courseId);
+        let resolvedCourseId = courseId;
+        if (!isUUID) {
+            const { data: course } = await supabase
+                .from('courses')
+                .select('id')
+                .eq('slug', courseId)
+                .maybeSingle();
+            if (!course) {
+                return res.status(404).json({ success: false, message: "Course not found" });
+            }
+            resolvedCourseId = course.id;
+        }
+
+        // Fetch course details
+        const { data: course, error: courseError } = await supabase
+            .from('courses')
+            .select('*, instructor:instructor_id(first_name, last_name, avatar_url, image, about)')
+            .eq('id', resolvedCourseId)
+            .single();
+
+        if (courseError || !course) {
+            return res.status(404).json({ success: false, message: "Course details not found" });
+        }
+
+        // Fetch curriculum sections
+        const { data: sections, error: secError } = await supabase
+            .from('course_sections')
+            .select('*')
+            .eq('course_id', resolvedCourseId)
+            .order('position', { ascending: true });
+
+        if (secError) throw secError;
+
+        // Fetch lessons (query secure curtain view to resolve gated YouTube embeds!)
+        const { data: lessons, error: lesError } = await supabase
+            .from('lessons_secure_view')
+            .select('*')
+            .eq('course_id', resolvedCourseId)
+            .order('position', { ascending: true });
+
+        if (lesError) throw lesError;
+
+        // Fetch student's progress checklist state
+        const { data: progress } = await supabase
+            .from('course_progress')
+            .select('lesson_id, completed')
+            .eq('course_id', resolvedCourseId)
+            .eq('student_id', studentId);
+
+        const completedIds = (progress || []).filter(p => p.completed).map(p => p.lesson_id);
+
+        // Format curriculum array
+        const formattedSections = (sections || []).map(section => ({
+            ...section,
+            section_name: section.title,
+            sub_sections: (lessons || [])
+                .filter(lesson => lesson.section_id === section.id)
+                .map(lesson => ({
+                    ...lesson,
+                    completed: completedIds.includes(lesson.id),
+                    time_duration: lesson.duration_seconds ? `${Math.round(lesson.duration_seconds / 60)} min` : "5 min"
+                }))
+        }));
+
+        course.course_name = course.title;
+        course.course_description = course.description;
+        course.enrolled_students_count = course.enrollment_count || 0;
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                courseDetails: course,
+                sections: formattedSections,
+                completedLessons: completedIds
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to compile secured course syllabus",
+            error: error.message
+        });
+    }
+};
+
+// Update and Sync Lecture Progress Checklist Checkbox
+exports.updateLectureProgress = async (req, res) => {
+    try {
+        const { courseId, lessonId, completed, watchedSeconds } = req.body;
+        const studentId = req.user.id;
+
+        if (!courseId || !lessonId) {
+            return res.status(400).json({ success: false, message: "courseId and lessonId are required" });
+        }
+
+        const { data: progress, error } = await supabase
+            .from('course_progress')
+            .upsert({
+                student_id: studentId,
+                course_id: courseId,
+                lesson_id: lessonId,
+                completed: !!completed,
+                watched_seconds: Number(watchedSeconds || 0),
+                completion_percentage: completed ? 100 : 0,
+                last_watched_at: new Date().toISOString()
+            }, { onConflict: 'student_id,lesson_id' })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return res.status(200).json({
+            success: true,
+            message: "Progress synchronized successfully!",
+            data: progress
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to sync checklist progress",
+            error: error.message
+        });
+    }
+};
+
+// Get Enrolled Courses Specific to Student
+exports.getStudentEnrolledCourses = async (req, res) => {
+    try {
+        const studentId = req.user.id;
+
+        const { data: enrollments, error } = await supabase
+            .from('enrollments')
+            .select(`
+                id,
+                enrolled_at,
+                course:course_id(
+                    id,
+                    title,
+                    description,
+                    price,
+                    thumbnail,
+                    final_thumbnail_url,
+                    is_free,
+                    instructor:instructor_id(first_name, last_name, avatar_url, image)
+                )
+            `)
+            .eq('student_id', studentId)
+            .eq('enrollment_status', 'active');
+
+        if (error) throw error;
+
+        // Clean null entries
+        const formatted = (enrollments || [])
+            .filter(e => e.course)
+            .map(e => ({
+                enrollmentId: e.id,
+                enrolledAt: e.enrolled_at,
+                ...e.course,
+                course_name: e.course.title,
+                course_description: e.course.description
+            }));
+
+        return res.status(200).json({
+            success: true,
+            data: formatted
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch enrolled courses",
+            error: error.message
+        });
+    }
+};
+
+// Retrieve Student's Continue Learning Bookmark
+exports.getStudentContinueLearning = async (req, res) => {
+    try {
+        const studentId = req.user.id;
+
+        const { data: lastWatched, error } = await supabase
+            .from('course_progress')
+            .select(`
+                *,
+                course:course_id(id, title, thumbnail, final_thumbnail_url),
+                lesson:lesson_id(id, title, position)
+            `)
+            .eq('student_id', studentId)
+            .order('last_watched_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        return res.status(200).json({
+            success: true,
+            data: lastWatched || null
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch continue learning bookmarks",
+            error: error.message
+        });
+    }
+};
+
 

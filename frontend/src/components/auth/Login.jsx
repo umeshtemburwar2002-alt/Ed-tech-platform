@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useDispatch } from 'react-redux'
 import { toast } from 'react-hot-toast'
@@ -17,13 +17,18 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState('student')
   
   const navigate = useNavigate()
+  const location = useLocation()
   const dispatch = useDispatch()
+  const customRedirect = location.state?.from || null
 
   const handleLogin = async () => {
     try {
       setLoading(true)
       setError('')
-      await dispatch(login(email, password, navigate))
+      if (customRedirect) {
+        sessionStorage.setItem("intended_redirect", customRedirect);
+      }
+      await dispatch(login(email, password, navigate, selectedRole, customRedirect))
     } catch (e) {
       setError(e.message || 'Login failed')
       toast.error('Login failed')
@@ -36,6 +41,9 @@ export default function Login() {
     try {
       setOauthLoading(provider)
       sessionStorage.setItem(OAUTH_ROLE_KEY, selectedRole)
+      if (customRedirect) {
+        sessionStorage.setItem("intended_redirect", customRedirect);
+      }
       if (provider === 'google') {
         await signInWithGoogle()
       } else if (provider === 'github') {

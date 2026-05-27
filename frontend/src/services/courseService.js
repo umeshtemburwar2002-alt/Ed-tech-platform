@@ -35,7 +35,14 @@ export async function getInstructorCourses(instructorId) {
         what_you_will_learn,
         instructions,
         created_at,
-        updated_at
+        updated_at,
+        preview_video_url,
+        preview_video_id,
+        preview_video_thumbnail,
+        preview_video_embed_url,
+        video_provider,
+        preview_duration,
+        preview_type
       `)
       .eq("instructor_id", instructorId)
       .order("created_at", { ascending: false });
@@ -190,6 +197,13 @@ export async function getCourseById(courseId) {
 /** Create a new course draft and return the new row. */
 export async function createCourse(instructorId, payload, status = "draft") {
   try {
+    if (!instructorId) {
+      return { data: null, error: new Error("Instructor ID is required to create a course") };
+    }
+    if (!payload || !(payload.title || payload.course_name)?.trim()) {
+      return { data: null, error: new Error("Course title is required and cannot be empty") };
+    }
+
     console.log("[createCourse] Creating course with payload:", payload);
     
     const validStatuses = ["draft", "pending", "published", "rejected", "archived"];
@@ -197,13 +211,31 @@ export async function createCourse(instructorId, payload, status = "draft") {
     
     const safeCourseData = {
       instructor_id:       instructorId,
-      course_name:         payload.title || payload.course_name || "",
-      course_description:  payload.description || payload.course_description || "",
-      what_you_will_learn: "",
-      price:               payload.price ?? 0,
-      category_id:         payload.category_id ?? null,
+      course_name:         (payload.title || payload.course_name || "").trim(),
+      course_description:  (payload.description || payload.course_description || "").trim(),
+      what_you_will_learn: Array.isArray(payload.what_you_will_learn) ? payload.what_you_will_learn.filter(Boolean) : [],
+      requirements:        Array.isArray(payload.requirements) ? payload.requirements.filter(Boolean) : [],
+      learning_outcomes:   Array.isArray(payload.learning_outcomes) ? payload.learning_outcomes.filter(Boolean) : [],
+      target_audience:     Array.isArray(payload.target_audience) ? payload.target_audience.filter(Boolean) : [],
+      instructions:        Array.isArray(payload.instructions) ? payload.instructions.filter(Boolean) : [],
+      price:               Number(payload.price ?? 0),
+      category_id:         payload.category_id ?? payload.category ?? null,
+      department_id:       payload.department_id ?? null,
+      semester:            payload.semester ?? null,
+      subject_code:        payload.subject_code ?? null,
+      slug:                payload.slug ?? null,
+      is_free:             !!payload.is_free,
+      tags:                Array.isArray(payload.tags) ? payload.tags.filter(Boolean) : [],
       status:              finalStatus,
       sold_count:          0,
+      // Video preview fields (ALL requested fields)
+      preview_video_url:   payload.preview_video_url ?? null,
+      preview_video_id:    payload.preview_video_id ?? null,
+      preview_video_thumbnail: payload.preview_video_thumbnail ?? payload.preview_thumbnail ?? null,
+      preview_video_embed_url: payload.preview_video_embed_url ?? null,
+      video_provider:      payload.video_provider ?? "youtube",
+      preview_duration:    payload.preview_duration ?? payload.video_duration ?? null,
+      preview_type:        payload.preview_type ?? "video",
     };
     
     console.log("[createCourse] Inserting safe course data:", safeCourseData);
@@ -216,14 +248,15 @@ export async function createCourse(instructorId, payload, status = "draft") {
 
     console.log("[createCourse] Supabase response:", response);
 
-    if (!response) {
+    if (!response || response.error) {
+      console.error("[createCourse] Supabase Error:", response?.error);
       return {
         data: null,
-        error: new Error("No response from Supabase"),
+        error: response?.error || new Error("Failed to insert course record"),
       };
     }
 
-    return response;
+    return { data: response.data, error: null };
   } catch (error) {
     console.error("[createCourse] Error:", error);
     return {
@@ -237,11 +270,37 @@ export async function createCourse(instructorId, payload, status = "draft") {
 export async function updateCourse(courseId, updates) {
   const finalUpdates = {
     ...updates,
-    tags: Array.isArray(updates.tags) ? updates.tags : [],
-    instructions: Array.isArray(updates.instructions) ? updates.instructions : [],
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
   };
-  
+  if ("tags" in updates) {
+    finalUpdates.tags = Array.isArray(updates.tags) ? updates.tags.filter(Boolean) : [];
+  }
+  if ("instructions" in updates) {
+    finalUpdates.instructions = Array.isArray(updates.instructions)
+      ? updates.instructions.filter(Boolean)
+      : [];
+  }
+  if ("what_you_will_learn" in updates) {
+    finalUpdates.what_you_will_learn = Array.isArray(updates.what_you_will_learn)
+      ? updates.what_you_will_learn.filter(Boolean)
+      : [];
+  }
+  if ("requirements" in updates) {
+    finalUpdates.requirements = Array.isArray(updates.requirements)
+      ? updates.requirements.filter(Boolean)
+      : [];
+  }
+  if ("learning_outcomes" in updates) {
+    finalUpdates.learning_outcomes = Array.isArray(updates.learning_outcomes)
+      ? updates.learning_outcomes.filter(Boolean)
+      : [];
+  }
+  if ("target_audience" in updates) {
+    finalUpdates.target_audience = Array.isArray(updates.target_audience)
+      ? updates.target_audience.filter(Boolean)
+      : [];
+  }
+
   const { data, error } = await supabase
     .from("courses")
     .update(finalUpdates)
@@ -259,33 +318,17 @@ export async function setCourseStatus(courseId, status) {
 
 /** Publish a course (set status to published). */
 export async function publishCourse(courseId) {
-  try {
-    const response = await supabase
-      .from("courses")
-      .update({
-        status: "published",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", courseId)
-      .select();
+  const { data, error } = await supabase
+    .from("courses")
+    .update({
+      status: "published",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", courseId)
+    .select()
+    .single();
 
-    console.log("[publishCourse] Response:", response);
-
-    if (!response) {
-      return {
-        data: null,
-        error: new Error("No response returned"),
-      };
-    }
-
-    return response;
-  } catch (error) {
-    console.error("[publishCourse] Error:", error);
-    return {
-      data: null,
-      error,
-    };
-  }
+  return { data, error };
 }
 
 /** Delete a course. Cascades to sections + sub-sections via FK ON DELETE CASCADE. */
@@ -313,19 +356,31 @@ export async function getCategories() {
 
 export async function addSection(courseId, sectionName, orderIndex = 0) {
   try {
+    if (!courseId) {
+      return { data: null, error: new Error("Course ID is required to create a section") };
+    }
+    if (!sectionName || !sectionName.trim()) {
+      return { data: null, error: new Error("Section title is required and cannot be empty") };
+    }
+
     const response = await supabase
       .from("sections")
-      .insert({ course_id: courseId, section_name: sectionName, order_index: orderIndex })
+      .insert({ 
+        course_id: courseId, 
+        section_name: sectionName.trim(), 
+        order_index: Number(orderIndex || 0) 
+      })
       .select()
       .single();
 
     console.log("[addSection] Response:", response);
 
-    if (!response) {
-      return { data: null, error: new Error("No response from Supabase") };
+    if (!response || response.error) {
+      console.error("[addSection] Supabase Error:", response?.error);
+      return { data: null, error: response?.error || new Error("Failed to insert section") };
     }
 
-    return response;
+    return { data: response.data, error: null };
   } catch (error) {
     console.error("[addSection] Error:", error);
     return { data: null, error };
@@ -341,11 +396,11 @@ export async function updateSection(sectionId, updates) {
       .select()
       .single();
 
-    if (!response) {
-      return { data: null, error: new Error("No response from Supabase") };
+    if (!response || response.error) {
+      return { data: null, error: response?.error || new Error("Failed to update section") };
     }
 
-    return response;
+    return { data: response.data, error: null };
   } catch (error) {
     console.error("[updateSection] Error:", error);
     return { data: null, error };
@@ -361,27 +416,35 @@ export async function deleteSection(sectionId) {
 
 export async function addLesson(sectionId, payload) {
   try {
+    if (!sectionId) {
+      return { data: null, error: new Error("Section ID is required to create a lesson") };
+    }
+    if (!payload || !payload.title || !payload.title.trim()) {
+      return { data: null, error: new Error("Lesson title is required and cannot be empty") };
+    }
+
     const response = await supabase
       .from("sub_sections")
       .insert({
         section_id:    sectionId,
-        title:         payload.title,
-        description:   payload.description ?? "",
-        video_url:     payload.video_url ?? "",
-        time_duration: payload.time_duration ?? "0",
-        is_preview:    payload.is_preview ?? false,
-        order_index:   payload.order_index ?? 0,
+        title:         payload.title.trim(),
+        description:   payload.description?.trim() ?? "",
+        video_url:     payload.video_url?.trim() ?? "",
+        time_duration: String(payload.time_duration || "0"),
+        is_preview:    !!payload.is_preview,
+        order_index:   Number(payload.order_index || 0),
       })
       .select()
       .single();
 
     console.log("[addLesson] Response:", response);
 
-    if (!response) {
-      return { data: null, error: new Error("No response from Supabase") };
+    if (!response || response.error) {
+      console.error("[addLesson] Supabase Error:", response?.error);
+      return { data: null, error: response?.error || new Error("Failed to insert lesson") };
     }
 
-    return response;
+    return { data: response.data, error: null };
   } catch (error) {
     console.error("[addLesson] Error:", error);
     return { data: null, error };

@@ -46,10 +46,11 @@ export default function RoleRoute({ allow = [], children }) {
   // Still waiting for profile — spin (don't redirect to /login)
   if (!authInitialized || !user) return <Spinner />;
 
-  const accountType = user.accountType ?? "Student";
+  const accountType = String(user.accountType ?? "student").toLowerCase();
+  const allowedRoles = allow.map((r) => String(r).toLowerCase());
 
   // User is allowed — pass through
-  if (!allow.length || allow.includes(accountType)) return children;
+  if (!allowedRoles.length || allowedRoles.includes(accountType)) return children;
 
   // User is authenticated but wrong role → send them to THEIR dashboard
   // (never to /login — they are logged in, just on the wrong page)

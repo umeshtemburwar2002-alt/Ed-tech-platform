@@ -1,6 +1,6 @@
 import React from "react"
 import { NavLink, Outlet } from "react-router-dom"
-import { FaTachometerAlt, FaUsers, FaBook, FaChartBar } from "react-icons/fa"
+import { FaTachometerAlt, FaUsers, FaBook, FaChartBar, FaClipboardList } from "react-icons/fa"
 
 export default function AdminLayout() {
   return (
@@ -19,6 +19,9 @@ export default function AdminLayout() {
           </NavLink>
           <NavLink to="/admin/reports" className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl ${isActive ? "bg-yellow-400 text-black" : "hover:bg-white/10"}`}>
             <FaChartBar /><span>Reports</span>
+          </NavLink>
+          <NavLink to="/admin/enrollments" className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl ${isActive ? "bg-yellow-400 text-black" : "hover:bg-white/10"}`}>
+            <FaClipboardList /><span>Enrollments</span>
           </NavLink>
         </nav>
       </aside>

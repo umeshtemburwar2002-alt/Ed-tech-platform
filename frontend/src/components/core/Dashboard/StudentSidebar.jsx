@@ -26,7 +26,8 @@ import {
   FaUsers,
   FaFolderOpen,
   FaGift,
-  FaCog
+  FaCog,
+  FaHistory
 } from "react-icons/fa";
 
 const sidebarLinks = [
@@ -34,6 +35,7 @@ const sidebarLinks = [
   { id: "my-learning", label: "My Learning", icon: FaBook, path: "/dashboard/enrolled-courses" },
   { id: "explore-courses", label: "Explore Courses", icon: FaBook, path: "/course-catalog" },
   { id: "learning-roadmaps", label: "Learning Roadmaps", icon: FaChartLine, path: "/dashboard/learning-path" },
+  { id: "purchase-history", label: "My Purchases", icon: FaHistory, path: "/dashboard/purchase-history" },
   { id: "wishlist", label: "Wishlist", icon: FaStar, path: "/dashboard/wishlist" },
   { id: "assignments", label: "Assignments", icon: FaClipboardList, path: "/dashboard/assignments" },
   { id: "quizzes", label: "Quizzes", icon: FaKeyboard, path: "/dashboard/quizzes" },
