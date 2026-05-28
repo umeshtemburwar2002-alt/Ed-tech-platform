@@ -146,35 +146,60 @@ export function buildAppUserFromSession(session, profile) {
 /** Read JWT from localStorage (supports legacy JSON-stringified tokens). */
 export function getStoredAccessToken() {
   const t = localStorage.getItem("token");
-  if (!t) return null;
+  if (!t) {
+    console.log("[getStoredAccessToken] No token found in localStorage");
+    return null;
+  }
   try {
     const parsed = JSON.parse(t);
-    return typeof parsed === "string" ? parsed : null;
+    const token = typeof parsed === "string" ? parsed : null;
+    if (token) {
+      // Log token info without exposing the full token
+      const tokenPreview = token.substring(0, 20) + "...";
+      console.log("[getStoredAccessToken] ✅ Token retrieved:", tokenPreview);
+    }
+    return token;
   } catch {
+    console.log("[getStoredAccessToken] ✅ Token retrieved (raw string)");
     return t;
   }
 }
 
 export function persistClientSession(accessToken, user) {
+  console.log("[persistClientSession] Saving session...");
+  
   if (accessToken) {
     const raw =
       typeof accessToken === "string" ? accessToken : String(accessToken ?? "");
     localStorage.setItem("token", raw);
+    const tokenPreview = raw.substring(0, 20) + "...";
+    console.log("[persistClientSession] ✅ Token saved:", tokenPreview);
   }
+  
   if (user) {
     localStorage.setItem("user", JSON.stringify(user));
+    console.log("[persistClientSession] ✅ User saved:", {
+      id: user.id,
+      email: user.email,
+      accountType: user.accountType,
+      firstName: user.firstName
+    });
   }
+  
   localStorage.setItem("isLoggedIn", "true");
   const roleKey =
     user?.accountType === ACCOUNT_TYPE.INSTRUCTOR
       ? "teacher"
       : String(user?.accountType ?? "student").toLowerCase();
   localStorage.setItem("userRole", roleKey);
+  console.log("[persistClientSession] ✅ Role saved:", roleKey);
 }
 
 export function clearClientSessionStores() {
+  console.log("[clearClientSessionStores] Clearing all session data...");
   localStorage.removeItem("token");
   localStorage.removeItem("user");
   localStorage.removeItem("isLoggedIn");
   localStorage.removeItem("userRole");
+  console.log("[clearClientSessionStores] ✅ Session cleared");
 }
