@@ -50,7 +50,8 @@ export default function ViewCourse() {
   const fetchSecuredSyllabus = async () => {
     try {
       setLoading(true);
-      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:4000/api/v1';
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BASE_URL || 'http://localhost:4000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
       const activeToken = token || localStorage.getItem("token");
       
       const response = await fetch(`${baseUrl}/course/learn/${courseId}`, {
@@ -180,7 +181,8 @@ export default function ViewCourse() {
     setCompletedLessons(updatedCompleted);
 
     try {
-      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:4000/api/v1';
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BASE_URL || 'http://localhost:4000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
       const activeToken = token || localStorage.getItem("token");
       const response = await fetch(`${baseUrl}/course/lecture/progress`, {
         method: "POST",

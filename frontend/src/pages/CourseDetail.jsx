@@ -305,7 +305,8 @@ const CourseDetail = () => {
 
     try {
       const isFree = courseData.is_free || Number(courseData.price) === 0;
-      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:4000/api/v1';
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BASE_URL || 'http://localhost:4000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
 
       if (isFree) {
         // FREE COURSE - Direct enrollment

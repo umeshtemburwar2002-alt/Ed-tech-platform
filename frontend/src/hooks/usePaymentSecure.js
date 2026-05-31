@@ -6,11 +6,13 @@ import { useState } from "react";
 import axios from "axios";
 
 // Use the same base URL as the rest of the app (set in frontend/.env)
-const API_BASE =
-    process.env.REACT_APP_BACKEND_URL ||
+const API_URL =
     process.env.REACT_APP_API_URL     ||
+    process.env.REACT_APP_BACKEND_URL ||
     process.env.REACT_APP_BASE_URL    ||
     "http://localhost:4000/api/v1";
+
+const API_BASE = API_URL.endsWith('/api/v1') ? API_URL : `${API_URL}/api/v1`;
 
 
 /**

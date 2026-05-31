@@ -1,7 +1,8 @@
 import { toast } from "react-hot-toast";
 import { supabase } from "../../config/supabaseClient";
 
-const BASE = process.env.REACT_APP_BACKEND_URL || "http://localhost:4000/api/v1";
+const API_URL = process.env.REACT_APP_API_URL || process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BASE_URL || "http://localhost:4000/api/v1";
+const BASE = API_URL.endsWith('/api/v1') ? API_URL : `${API_URL}/api/v1`;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 

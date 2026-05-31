@@ -1,7 +1,8 @@
 import axios from "axios";
 import { getStoredAccessToken } from "../utils/supabaseAuthHelpers";
 
-const BASE_URL = process.env.REACT_APP_BASE_URL || "http://localhost:4000/api/v1";
+const API_URL = process.env.REACT_APP_API_URL || process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BASE_URL || "http://localhost:4000/api/v1";
+const BASE_URL = API_URL.endsWith('/api/v1') ? API_URL : `${API_URL}/api/v1`;
 
 console.log("[apiConnector] Initializing with BASE_URL:", BASE_URL);
 
