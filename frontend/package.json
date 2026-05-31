@@ -49,7 +49,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "cross-env DISABLE_ESLINT_PLUGIN=true CI=false react-scripts build",
+    "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -75,7 +75,6 @@
   "devDependencies": {
     "@babel/plugin-transform-nullish-coalescing-operator": "^7.28.6",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.17",
-    "cross-env": "^7.0.3",
     "eslint": "^9.39.4",
     "glob": "^11.1.0",
     "react-refresh": "^0.11.0",
