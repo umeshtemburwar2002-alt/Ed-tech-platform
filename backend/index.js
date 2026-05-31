@@ -42,7 +42,8 @@ app.use((req, res, next) => {
 app.use(cors({
     origin: [
         "http://localhost:3000",
-        "https://my-production-domain.com"
+        "https://ed-tech-platform-frontend-tawny.vercel.app",
+        "https://ed-tech-platform-frontend-tawny.vercel.app/*"
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
