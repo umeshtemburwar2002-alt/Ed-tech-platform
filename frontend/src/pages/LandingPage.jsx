@@ -248,17 +248,17 @@ export default function LandingPage() {
       <CoursesSection />
 
       {/* SECTION 4 – BOTTOM IMAGE SECTION */}
-      <section className="py-32 px-4 md:px-8 lg:px-20 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto relative group">
+      <section className="py-16 px-4 md:px-8 lg:px-20 relative overflow-hidden">
+        <div className="max-w-5xl mx-auto relative group">
           <motion.div 
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-[4.5rem] overflow-hidden flex flex-col lg:flex-row items-center lg:items-stretch relative min-h-[600px] shadow-[0_50px_100px_rgba(37,99,235,0.2)] border border-white/10"
+            className="bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-800 rounded-[3rem] overflow-hidden flex flex-col lg:flex-row items-center lg:items-stretch relative min-h-[380px] shadow-[0_30px_60px_rgba(37,99,235,0.15)] border border-white/10"
           >
             {/* Left Media (Video) */}
-            <div className="order-1 lg:order-1 w-full lg:w-1/2 h-[450px] lg:h-auto relative overflow-hidden">
+            <div className="order-1 lg:order-1 w-full lg:w-5/12 h-[280px] lg:h-auto relative overflow-hidden">
               <video 
                 autoPlay
                 muted
@@ -267,7 +267,7 @@ export default function LandingPage() {
                 preload="metadata"
                 poster={posterImg}
                 aria-label="Learning showcase"
-                className="absolute inset-0 w-full h-full object-cover object-left brightness-[1.05]"
+                className="absolute inset-0 w-full h-full object-cover object-center brightness-[1.05]"
               >
                 <source src={bannerVideo} type="video/mp4" />
               </video>
@@ -276,17 +276,17 @@ export default function LandingPage() {
             </div>
             
             {/* Right Text Content */}
-            <div className="order-2 w-full lg:w-1/2 p-12 lg:p-24 text-white z-10 relative">
-              <div className="inline-block px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-blue-100 text-sm font-bold mb-10 tracking-widest uppercase">
+            <div className="order-2 w-full lg:w-7/12 p-8 lg:p-14 text-white z-10 relative flex flex-col justify-center">
+              <div className="inline-block px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-blue-100 text-xs font-bold mb-6 tracking-widest uppercase self-start">
                 Career Transformation
               </div>
-              <h2 className="text-5xl md:text-7xl font-black leading-[1.1] tracking-tighter text-white">
+              <h2 className="text-3xl md:text-5xl font-black leading-tight tracking-tighter text-white">
                 Start Your IT <br /> Career Today
               </h2>
-              <p className="mt-10 text-xl font-medium text-blue-100 leading-relaxed max-w-md opacity-90">
-                Don't just dream about a career in tech. Build it with practical skills, real projects, and dedicated support from industry leaders.
+              <p className="mt-4 text-base font-medium text-blue-100 leading-relaxed max-w-sm opacity-90">
+                Don't just dream about a career in tech. Build it with practical skills and real projects.
               </p>
-              <button className="mt-12 group flex items-center gap-5 bg-white text-blue-900 px-12 py-5 rounded-[2rem] font-black text-xl hover:scale-105 transition-all shadow-2xl hover:shadow-white/20">
+              <button className="mt-8 group flex items-center gap-4 bg-white text-blue-900 px-8 py-3.5 rounded-full font-black text-lg hover:scale-105 transition-all shadow-xl hover:shadow-white/20 self-start">
                 Apply Now 
                 <FaArrowRight className="group-hover:translate-x-2 transition-transform" />
               </button>

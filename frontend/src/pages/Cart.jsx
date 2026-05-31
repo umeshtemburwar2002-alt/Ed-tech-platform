@@ -41,7 +41,7 @@ const Cart = () => {
   // Handle remove from cart
   const handleRemoveFromCart = (courseId) => {
     dispatch(removeFromCart(courseId));
-    toast.success('Course removed from cart!');
+    // Toast is already shown by cartSlice reducer — no duplicate needed
   };
 
   // Handle checkout
@@ -93,20 +93,13 @@ const Cart = () => {
                 Explore our amazing collection of courses and start your learning journey!
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  onClick={handleContinueShopping}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-3 transform hover:scale-105"
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+                <Link
+                  to="/explore-courses"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white transition-all duration-300 px-8 py-4 rounded-xl font-semibold shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:-translate-y-1 flex items-center justify-center gap-3"
                 >
                   <FaRocket />
                   Explore Courses
-                </button>
-                <Link
-                  to="/start-learning-free"
-                  className="border-2 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white transition-all duration-300 px-8 py-4 rounded-xl font-semibold flex items-center justify-center gap-3"
-                >
-                  <FaGift />
-                  Free Courses
                 </Link>
               </div>
             </motion.div>

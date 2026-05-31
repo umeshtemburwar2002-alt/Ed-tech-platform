@@ -1,56 +1,149 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { getUserEnrolledCourses } from "../../../services/operations/profileAPI";
+import { FaSpinner, FaPlay, FaYoutube, FaBookOpen, FaGraduationCap } from "react-icons/fa";
 
 export default function EnrolledCourses() {
-	const { token } = useSelector((state) => state.auth);
-	const [courses, setCourses] = useState(null);
-	const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { user } = useSelector((s) => s.profile);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-	const getEnrolledCourses = async () => {
-		try {
-			const res = await getUserEnrolledCourses(token);
-			setCourses(res);
-		} catch (error) {
-			console.log("Could not fetch enrolled courses.");
-		} finally {
-			setLoading(false);
-		}
-	};
+  const { token } = useSelector((s) => s.auth);
 
-	useEffect(() => {
-		getEnrolledCourses();
-	}, []);
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    load();
+  }, [token]);
 
-	if (loading) return <div className="grid h-screen place-items-center"><div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div></div>;
-	if (!courses || courses.length === 0) return <div className="text-richblack-300 mt-10 text-center">You are not enrolled in any course yet.</div>;
+  const load = async () => {
+    try {
+      const data = await getUserEnrolledCourses(token);
 
-	return (
-		<div className="space-y-6">
-			<h2 className="text-xl font-semibold text-richblack-5">Enrolled Courses</h2>
-			<div className="space-y-4">
-				{courses.map((c) => (
-					<div key={c._id} className="rounded border border-richblack-700 bg-richblack-800 p-4 flex flex-col gap-3">
-						<div className="flex items-start gap-4">
-							<img src={c.thumbnail || "https://placehold.co/96x64"} alt="thumb" className="h-16 w-24 rounded object-cover border border-richblack-700" />
-							<div className="flex-1 min-w-0">
-								<h3 className="font-medium text-richblack-50 line-clamp-2" title={c.courseName || c.title}>{c.courseName || c.title}</h3>
-								<p className="text-xs mt-1 text-richblack-300 line-clamp-2">{c.courseDescription || c.description}</p>
-								<div className="mt-2 flex items-center gap-3">
-									<div className="flex-1 h-2 rounded bg-richblack-700 overflow-hidden">
-										<div className="h-full bg-indigo-500" style={{ width: `${c.progressPercentage || 0}%` }} />
-									</div>
-									<span className="text-[11px] text-richblack-300">{c.progressPercentage || 0}%</span>
-								</div>
-							</div>
-							<div className="flex flex-col gap-2">
-								<button className="text-[11px] px-3 py-1 rounded bg-yellow-50 text-richblack-900 font-semibold hover:opacity-90">Resume</button>
-								<button className="text-[11px] px-3 py-1 rounded border border-richblack-600 text-richblack-200 hover:bg-richblack-700">Details</button>
-							</div>
-						</div>
-					</div>
-				))}
-			</div>
-		</div>
-	);
+      const merged = (data || []).map(row => ({
+        ...row,
+        id: row._id,
+        progress: Math.round(row.progressPercentage || 0),
+        instructor: {
+          first_name: row.instructor?.firstName || 'Instructor',
+          last_name:  row.instructor?.lastName || '',
+          avatar_url: row.instructor?.image || '',
+        },
+        courseName: row.courseName,
+        courseDescription: row.courseDescription,
+        thumbnail: row.thumbnail,
+      }));
+
+      setCourses(merged);
+    } catch (e) {
+      console.error("[EnrolledCourses]", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="grid h-64 place-items-center">
+        <FaSpinner className="w-10 h-10 text-cyan-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!courses.length) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <FaGraduationCap className="text-slate-700 text-6xl" />
+        <p className="text-richblack-300 text-center font-bold">You haven't enrolled in any courses yet.</p>
+        <button
+          onClick={() => navigate("/explore-courses")}
+          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black rounded-2xl transition-all"
+        >
+          Browse Courses
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-richblack-5">
+        Enrolled Courses <span className="text-indigo-400 font-black">({courses.length})</span>
+      </h2>
+
+      <div className="space-y-4">
+        {courses.map((c) => (
+          <div
+            key={c.id}
+            className="rounded-2xl border border-richblack-700 bg-richblack-800 p-5 flex flex-col gap-3 hover:border-white/10 transition-all"
+          >
+            <div className="flex items-start gap-4">
+              {/* Thumbnail */}
+              <div className="h-20 w-32 rounded-xl overflow-hidden bg-richblack-900 border border-richblack-700 shrink-0">
+                {c.thumbnail ? (
+                  <img
+                    src={c.thumbnail}
+                    alt={c.title}
+                    className="h-full w-full object-cover"
+                    onError={e => { e.target.style.display = "none"; }}
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center">
+                    <FaYoutube className="text-richblack-600 text-2xl" />
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-richblack-50 line-clamp-2 text-base" title={c.title}>
+                  {c.title}
+                </h3>
+                {c.instructor && (
+                  <p className="text-xs mt-0.5 text-richblack-400">
+                    {c.instructor.first_name} {c.instructor.last_name}
+                  </p>
+                )}
+                {c.description && (
+                  <p className="text-xs mt-1 text-richblack-400 line-clamp-2">{c.description}</p>
+                )}
+
+                {/* Progress bar */}
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="flex-1 h-2 rounded-full bg-richblack-700 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${c.completed ? "bg-emerald-500" : "bg-indigo-500"}`}
+                      style={{ width: `${c.progress || 0}%` }}
+                    />
+                  </div>
+                  <span className={`text-[11px] font-black ${c.completed ? "text-emerald-400" : "text-richblack-300"}`}>
+                    {c.completed ? "✓ Done" : `${c.progress || 0}%`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex flex-col gap-2 shrink-0">
+                <button
+                  onClick={() => navigate(`/learn/${c.id}`)}
+                  className="flex items-center gap-1.5 text-[11px] px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black transition-all shadow-lg shadow-indigo-500/20 whitespace-nowrap"
+                >
+                  <FaPlay className="text-[8px]" />
+                  {c.completed ? "Review" : "Resume"}
+                </button>
+                <button
+                  onClick={() => navigate(`/courses/${c.id}`)}
+                  className="flex items-center gap-1.5 text-[11px] px-4 py-2 rounded-xl border border-richblack-600 text-richblack-200 hover:bg-richblack-700 font-black transition-all whitespace-nowrap"
+                >
+                  <FaBookOpen className="text-[8px]" />
+                  Details
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

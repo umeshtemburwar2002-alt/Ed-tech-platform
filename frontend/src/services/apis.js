@@ -116,3 +116,10 @@ export const adminEndpoints = {
   DELETE_COURSE: BASE_URL + "/admin/courses/:id",
   REPORTS: BASE_URL + "/admin/reports/summary",
 }
+
+// WISHLIST ENDPOINTS
+export const wishlistEndpoints = {
+  GET_WISHLIST_API: BASE_URL + "/wishlist",
+  ADD_TO_WISHLIST_API: BASE_URL + "/wishlist", // needs /:courseId
+  REMOVE_FROM_WISHLIST_API: BASE_URL + "/wishlist", // needs /:courseId
+}

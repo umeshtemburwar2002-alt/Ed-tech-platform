@@ -394,15 +394,6 @@ const MobileMegaMenu = ({ isOpen, onClose }) => {
                   ) : (
                     <div className="text-center py-6">
                       <p className="text-sm text-richblack-400 mb-3">No enrolled courses yet</p>
-                      <button
-                        onClick={() => {
-                          navigate('/course-catalog');
-                          onClose();
-                        }}
-                        className="px-4 py-2 bg-yellow-50 text-richblack-900 rounded-lg text-sm font-semibold hover:bg-yellow-100 transition-colors"
-                      >
-                        Browse Courses
-                      </button>
                     </div>
                   )}
                 </div>
@@ -414,15 +405,6 @@ const MobileMegaMenu = ({ isOpen, onClose }) => {
                   <p className="text-xs text-richblack-400 mb-4">
                     Sign in to view your enrolled courses
                   </p>
-                  <button
-                    onClick={() => {
-                      navigate('/login');
-                      onClose();
-                    }}
-                    className="px-4 py-2 bg-yellow-50 text-richblack-900 rounded-lg text-sm font-semibold hover:bg-yellow-100 transition-colors"
-                  >
-                    Login Now
-                  </button>
                 </div>
               )}
             </div>

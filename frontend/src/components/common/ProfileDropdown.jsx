@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaSignOutAlt, FaUser, FaChalkboardTeacher, FaShieldAlt, FaGraduationCap, FaUsers, FaInfoCircle, FaEnvelope, FaHome } from 'react-icons/fa';
+import { FaSignOutAlt, FaUser, FaChalkboardTeacher, FaShieldAlt, FaEnvelope } from 'react-icons/fa';
 
 // ── Role display config ────────────────────────────────────────────────────────
 // Maps profile.account_type → { label, color, icon, dashboardPath }
@@ -43,7 +43,7 @@ function getRoleConfig(accountType) {
   if (!accountType) return DEFAULT_ROLE;
   const lower = accountType.toLowerCase();
   if (lower === 'instructor' || lower === 'teacher') return ROLE_CONFIG.Instructor;
-  if (lower === 'admin')                             return ROLE_CONFIG.Admin;
+  if (lower === 'admin') return ROLE_CONFIG.Admin;
   return ROLE_CONFIG.Student;
 }
 
@@ -62,35 +62,31 @@ const ProfileDropdown = ({ isOpen, onClose, user, handleLogout }) => {
       {isOpen && (
         <motion.div
           initial={{ opacity: 0, y: 10, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0,  scale: 1    }}
-          exit={{    opacity: 0, y: 10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 10, scale: 0.95 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="absolute top-full right-0 w-68 min-w-[260px] bg-[#000814]/95 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] z-[110] backdrop-blur-xl overflow-hidden"
+          className="absolute top-full right-0 w-68 min-w-[260px] bg-black/[0.6] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden z-[110] mt-2"
         >
-          {/* ── Profile Header ─────────────────────────────────────────── */}
-          <div className="px-4 py-4 bg-white/[0.03] border-b border-white/[0.07]">
-            {/* Avatar + Name */}
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
-                <img
-                  src={
-                    user?.image ||
-                    user?.avatar_url ||
-                    `https://api.dicebear.com/5.x/initials/svg?seed=${encodeURIComponent(displayName)}`
-                  }
-                  alt={displayName}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+          {/* ── Header ─────────────────────────────────────────────── */}
+          <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+            <div className="flex items-center gap-3">
+              <img
+                src={
+                  user?.image ||
+                  user?.avatar_url ||
+                  `https://api.dicebear.com/5.x/initials/svg?seed=${encodeURIComponent(displayName)}`
+                }
+                alt={displayName}
+                className="w-10 h-10 rounded-full border border-white/10"
+              />
               <div className="min-w-0">
-                <p className="text-sm font-bold text-white truncate leading-tight">
-                  {displayName}
-                </p>
+                <p className="text-sm font-bold text-white truncate">{displayName}</p>
                 <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
               </div>
             </div>
+          </div>
 
-            {/* Role badge — THE KEY FIX: reads from profile.account_type */}
+          <div className="px-4 py-3 bg-white/[0.02]">
             <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${role.bg}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${role.dot} animate-pulse`} />
               <RoleIcon className={`text-[10px] ${role.color}`} />
@@ -100,69 +96,21 @@ const ProfileDropdown = ({ isOpen, onClose, user, handleLogout }) => {
             </div>
           </div>
 
-          {/* ── Menu Items ─────────────────────────────────────────────── */}
-          <div className="p-2 space-y-0.5">
-            {/* Dashboard Link */}
+          {/* ── Menu Items ─────────────────────────────────────── */}
+          <div className="p-2 space-y-1">
+            {/* Dashboard */}
             <Link
               to={role.dashboardPath}
               onClick={onClose}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-slate-300 hover:text-white group"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white transition-colors"
             >
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${role.bg}`}>
                 <RoleIcon className={`text-xs ${role.color}`} />
               </div>
-              <span className="text-sm font-semibold">My Dashboard</span>
+              <span className="text-sm font-semibold">Dashboard</span>
             </Link>
 
-            {/* Instructor-specific links */}
-            {user?.accountType === "Instructor" && (
-              <>
-                <div className="mx-3 my-1 border-t border-white/[0.06]" />
-                <Link
-                  to="/"
-                  onClick={onClose}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-slate-300 hover:text-white group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                    <FaHome className="text-xs text-blue-400" />
-                  </div>
-                  <span className="text-sm font-semibold">Home</span>
-                </Link>
-                <Link
-                  to="/explore-courses"
-                  onClick={onClose}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-slate-300 hover:text-white group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                    <FaGraduationCap className="text-xs text-cyan-400" />
-                  </div>
-                  <span className="text-sm font-semibold">Explore Courses</span>
-                </Link>
-                <Link
-                  to="/students"
-                  onClick={onClose}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-slate-300 hover:text-white group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                    <FaUsers className="text-xs text-violet-400" />
-                  </div>
-                  <span className="text-sm font-semibold">Students</span>
-                </Link>
-                <Link
-                  to="/about"
-                  onClick={onClose}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-slate-300 hover:text-white group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                    <FaInfoCircle className="text-xs text-yellow-400" />
-                  </div>
-                  <span className="text-sm font-semibold">About</span>
-                </Link>
-
-              </>
-            )}
-
-          {/* ── Divider before destructive action ──────────────────── */}
+            {/* Divider */}
             <div className="mx-3 my-1 border-t border-white/[0.06]" />
 
             {/* Logout */}

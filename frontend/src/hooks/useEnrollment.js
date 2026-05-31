@@ -17,10 +17,10 @@ export function useEnrollment() {
     try {
       // 1. Check if already enrolled
       const { data: existing } = await supabase
-        .from("enrollments")
+        .from("course_enrollments")
         .select("id")
         .eq("course_id", courseId)
-        .eq("user_id", userId)
+        .eq("student_id", userId)
         .maybeSingle();
 
       if (existing) {
@@ -49,15 +49,18 @@ export function useEnrollment() {
 
       // 4. Insert enrollment record
       const { data: enrollment, error: enrollError } = await supabase
-        .from("enrollments")
+        .from("course_enrollments")
         .insert({
           course_id: courseId,
-          user_id: userId,
-          student_id: userId, // Safe alignment with this codebase's NOT NULL student_id constraint
-          enrollment_type: "free",
-          payment_status: "not_required",
-          amount_paid: 0,
+          student_id: userId,
+          payment_status: "Free",
           enrolled_at: new Date().toISOString(),
+          progress: 0,
+          completed: false,
+          student_name: studentName,
+          student_email: student.email || "",
+          course_name: course.title,
+          instructor_id: course.instructor_id,
         })
         .select()
         .single();
@@ -156,18 +159,18 @@ export function useEnrollment() {
 
       // 3. Insert enrollment with payment details
       const { data: enrollment, error: enrollError } = await supabase
-        .from("enrollments")
+        .from("course_enrollments")
         .insert({
           course_id: courseId,
-          user_id: userId,
-          student_id: userId, // Safe alignment with this codebase's NOT NULL student_id constraint
-          enrollment_type: "paid",
-          payment_status: "completed",
-          amount_paid: amountPaid,
-          razorpay_payment_id: razorpayPaymentId,
-          razorpay_order_id: razorpayOrderId,
-          razorpay_signature: razorpaySignature,
+          student_id: userId,
+          payment_status: "paid",
           enrolled_at: new Date().toISOString(),
+          progress: 0,
+          completed: false,
+          student_name: studentName,
+          student_email: student.email || "",
+          course_name: course.title,
+          instructor_id: course.instructor_id,
         })
         .select()
         .single();
@@ -238,10 +241,10 @@ export function useEnrollment() {
   const checkEnrollment = async ({ courseId, userId }) => {
     try {
       const { data } = await supabase
-        .from("enrollments")
+        .from("course_enrollments")
         .select("id, enrolled_at, payment_status")
         .eq("course_id", courseId)
-        .eq("user_id", userId)
+        .eq("student_id", userId)
         .maybeSingle();
       return data || null;
     } catch (err) {

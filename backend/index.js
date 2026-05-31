@@ -1,13 +1,18 @@
 const express = require("express");
 const app = express();
 
-const userRoutes    = require("./routes/User");
+const userRoutes = require("./routes/User");
 const profileRoutes = require("./routes/Profile");
-const courseRoutes  = require("./routes/Course");
+const courseRoutes = require("./routes/Course");
 const paymentRoutes = require("./routes/Payments");
 const paymentSecureRoutes = require("./routes/paymentSecureRoutes");
-const adminRoutes   = require("./routes/Admin");
+const adminRoutes = require("./routes/Admin");
 const supportRoutes = require("./routes/Support");
+const wishlistRoutes = require("./routes/Wishlist");
+const cartRoutes = require("./routes/cart");
+const notificationRoutes = require("./routes/notifications");
+const createOrderRoutes = require("./routes/createOrder");
+const verifyPaymentRoutes = require("./routes/verifyPayment");
 
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
@@ -16,17 +21,43 @@ const fileUpload = require("express-fileupload");
 const dotenv = require("dotenv");
 
 dotenv.config();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4001;
 
-// middlewares
+// ==========================================
+// 1. Debugging Logs Middleware
+// ==========================================
+app.use((req, res, next) => {
+    console.log(`\n========================================`);
+    console.log(`[REQ] ${req.method} ${req.originalUrl}`);
+    console.log(`[REQ] Origin: ${req.headers.origin || 'No Origin'}`);
+    console.log(`[REQ] Headers: ${JSON.stringify(req.headers)}`);
+    console.log(`[REQ] Auth Token: ${req.headers.authorization ? req.headers.authorization.substring(0, 20) + "..." : "Missing"}`);
+    console.log(`========================================`);
+    next();
+});
+
+// ==========================================
+// 2. CORS Middleware
+// ==========================================
+app.use(cors({
+    origin: [
+        "http://localhost:3000",
+        "https://my-production-domain.com"
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization"
+    ],
+    optionsSuccessStatus: 200
+}));
+
+// ==========================================
+// 3. Body Parsers
+// ==========================================
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-    cors({
-        origin: "http://localhost:3000",
-        credentials: true,
-    })
-);
 
 app.use(
     fileUpload({
@@ -38,17 +69,26 @@ app.use(
 // cloudinary connection
 cloudinaryConnect();
 
-// routes
-app.use("/api/v1/auth",    userRoutes);
+// ==========================================
+// 4. Routes
+// ==========================================
+app.use("/api/v1/auth", userRoutes);
 app.use("/api/v1/profile", profileRoutes);
-app.use("/api/v1/course",  courseRoutes);
+app.use("/api/v1/course", courseRoutes);
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/payment", paymentSecureRoutes);
 app.use("/api/v1/enrollment", paymentSecureRoutes);
-app.use("/api/v1/admin",   adminRoutes);
+app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/support", supportRoutes);
+app.use("/api/v1/wishlist", wishlistRoutes);
+app.use("/api/v1/cart", cartRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
-// Razorpay checkout exact route compatibility
+// ─── Razorpay Standard Checkout routes (/api/create-order & /api/verify-payment) ───
+app.use("/api/create-order", createOrderRoutes);
+app.use("/api/verify-payment", verifyPaymentRoutes);
+
+// Razorpay checkout exact route compatibility (legacy)
 const razorpayInstance = require("./config/razorpay");
 app.post("/api/create-razorpay-order", async (req, res) => {
     const { amount, currency, receipt, notes } = req.body;
@@ -69,15 +109,11 @@ app.get("/", (req, res) => {
     });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ERROR HANDLING MIDDLEWARE - ENSURES ALL RESPONSES ARE JSON (NOT HTML)
-// ═══════════════════════════════════════════════════════════════════════════════
-
 // Error handling middleware (must be after all routes)
 app.use((err, req, res, next) => {
     console.error("Error:", err);
-    
-    // ✅ CRITICAL: Always return JSON, never HTML
+
+    // CRITICAL: Always return JSON, never HTML
     return res.status(err.status || 500).json({
         success: false,
         message: err.message || "Internal server error",

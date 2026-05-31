@@ -58,23 +58,16 @@ function CourseDetailsCard({ course, setConfirmationModal, handleBuyCourse }) {
             Rs. {CurrentPrice}
           </div>
           <div className="flex flex-col gap-4">
-            <button
-              className="yellowButton"
-              onClick={
-                user && course?.studentsEnrolled.includes(user?._id)
-                  ? () => navigate("/dashboard/enrolled-courses")
-                  : handleBuyCourse
-              }
-            >
-              {user && course?.studentsEnrolled.includes(user?._id)
-                ? "Go To Course"
-                : "Buy Now"}
-            </button>
-            {(!user || !course?.studentsEnrolled.includes(user?._id)) && (
-              <button onClick={handleAddToCart} className="blackButton">
-                Add to Cart
-              </button>
-            )}
+            <CourseActionButtons
+                price={CurrentPrice}
+                isFree={CurrentPrice === 0}
+                isEnrolled={user && course?.studentsEnrolled?.includes(user._id)}
+                onBuy={handleBuyCourse}
+                onAddToCart={handleAddToCart}
+                buyLoading={false}
+                addLoading={false}
+                enrolledRender={<button className="bg-cyan-500 hover:bg-cyan-400 text-black px-5 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">Go To Classroom</button>}
+            />
           </div>
           <div>
             <p className="pb-3 pt-6 text-center text-sm text-richblack-25">

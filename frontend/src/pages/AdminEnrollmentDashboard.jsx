@@ -26,7 +26,7 @@ export default function AdminEnrollmentDashboard({ userId, userRole }) {
       .channel("enrollment-changes")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "enrollments" },
+        { event: "INSERT", schema: "public", table: "course_enrollments" },
         (payload) => {
           // Re-fetch when new enrollment arrives
           fetchEnrollments();
@@ -41,20 +41,15 @@ export default function AdminEnrollmentDashboard({ userId, userRole }) {
     setLoading(true);
     try {
       let query = supabase
-        .from("enrollments")
+        .from("course_enrollments")
         .select(`
           id,
           enrolled_at,
-          enrollment_type,
           payment_status,
-          amount_paid,
-          razorpay_payment_id,
-          user_id,
+          student_id,
           course_id,
-          profiles:user_id (
-            full_name,
-            email
-          ),
+          student_name,
+          student_email,
           courses:course_id (
             title,
             price,
@@ -83,11 +78,9 @@ export default function AdminEnrollmentDashboard({ userId, userRole }) {
 
       // Compute stats
       const total = filtered.length;
-      const freeCount = filtered.filter((e) => e.enrollment_type === "free").length;
-      const paidCount = filtered.filter((e) => e.enrollment_type === "paid").length;
-      const revenue = filtered
-        .filter((e) => e.enrollment_type === "paid")
-        .reduce((sum, e) => sum + (e.amount_paid || 0), 0) / 100; // Convert paise to INR
+      const freeCount = filtered.filter((e) => e.payment_status === "Free").length;
+      const paidCount = filtered.filter((e) => e.payment_status === "paid").length;
+      const revenue = 0; // amount_paid not in course_enrollments
 
       setStats({ total, free: freeCount, paid: paidCount, revenue });
     } catch (err) {
@@ -99,12 +92,14 @@ export default function AdminEnrollmentDashboard({ userId, userRole }) {
 
   // Filter + search
   const displayEnrollments = enrollments.filter((e) => {
-    const matchesFilter = filter === "all" || e.enrollment_type === filter;
+    const matchesFilter = filter === "all" || 
+      (filter === "free" && e.payment_status === "Free") ||
+      (filter === "paid" && e.payment_status === "paid");
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       !q ||
-      e.profiles?.full_name?.toLowerCase().includes(q) ||
-      e.profiles?.email?.toLowerCase().includes(q) ||
+      (e.student_name || "").toLowerCase().includes(q) ||
+      (e.student_email || "").toLowerCase().includes(q) ||
       e.courses?.title?.toLowerCase().includes(q);
     return matchesFilter && matchesSearch;
   });
@@ -191,10 +186,10 @@ export default function AdminEnrollmentDashboard({ userId, userRole }) {
                   style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)" }}
                 >
                   <td style={{ padding: "14px 16px", color: "#f9fafb", fontWeight: 500 }}>
-                    {e.profiles?.full_name || "—"}
+                    {e.student_name || "—"}
                   </td>
                   <td style={{ padding: "14px 16px", color: "#9ca3af" }}>
-                    {e.profiles?.email || "—"}
+                    {e.student_email || "—"}
                   </td>
                   <td style={{ padding: "14px 16px", color: "#f9fafb" }}>
                     {e.courses?.title || "—"}
@@ -207,20 +202,14 @@ export default function AdminEnrollmentDashboard({ userId, userRole }) {
                   <td style={{ padding: "14px 16px" }}>
                     <span style={{
                       padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 600,
-                      background: e.enrollment_type === "paid" ? "rgba(96,165,250,0.15)" : "rgba(52,211,153,0.15)",
-                      color: e.enrollment_type === "paid" ? "#60a5fa" : "#34d399",
+                      background: e.payment_status === "paid" ? "rgba(96,165,250,0.15)" : "rgba(52,211,153,0.15)",
+                      color: e.payment_status === "paid" ? "#60a5fa" : "#34d399",
                     }}>
-                      {e.enrollment_type === "paid" ? "Paid" : "Free"}
+                      {e.payment_status === "paid" ? "Paid" : "Free"}
                     </span>
                   </td>
-                  <td style={{ padding: "14px 16px", color: e.enrollment_type === "paid" ? "#f9fafb" : "#6b7280", fontWeight: e.enrollment_type === "paid" ? 600 : 400 }}>
-                    {e.enrollment_type === "paid" ? `₹${(e.amount_paid / 100).toLocaleString("en-IN")}` : "—"}
-                  </td>
-                  <td style={{ padding: "14px 16px", color: "#9ca3af", fontFamily: "monospace", fontSize: "12px" }}>
-                    {e.razorpay_payment_id
-                      ? e.razorpay_payment_id.slice(0, 14) + "…"
-                      : "—"}
-                  </td>
+                  <td style={{ padding: "14px 16px", color: "#6b7280" }}>—</td>
+                  <td style={{ padding: "14px 16px", color: "#6b7280" }}>—</td>
                   <td style={{ padding: "14px 16px", color: "#9ca3af", whiteSpace: "nowrap" }}>
                     {formatDate(e.enrolled_at)}
                   </td>

@@ -1,14 +1,63 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { FaPlay, FaClock, FaStar } from "react-icons/fa";
-import { generateYouTubeThumbnailUrl } from "../../utils/youtubeUtils";
+import { getYoutubeThumbnail } from "../../utils/youtubeUtils";
+
+// Default placeholder when no thumbnail is available
+const DEFAULT_THUMBNAIL = null; // Will show icon placeholder
 
 export default function CourseCard({ course, onClick }) {
   const [isHovered, setIsHovered] = useState(false);
 
-  const thumbnail = course.preview_thumbnail
-    || (course.preview_video_id ? generateYouTubeThumbnailUrl(course.preview_video_id) : null)
-    || course.thumbnail;
+  // ── Priority 1: DB pre-computed thumbnail (set by trigger on save) ─────────
+  // final_thumbnail_url = custom > uploaded > youtube (computed by Postgres trigger)
+  const dbThumbnail = course.final_thumbnail_url || course.youtube_thumbnail_url || null;
+
+  // ── Priority 2: Generate YouTube thumbnail from any URL field ─────────────
+  // Supports all column naming conventions used across the app
+  const youtubeUrl =
+    course.preview_video_url ||
+    course.youtube_video_url ||
+    null;
+  const youtubeThumbnail = dbThumbnail || getYoutubeThumbnail(youtubeUrl);
+
+  // ── Priority 3: Supabase-uploaded thumbnail ───────────────────────────────
+  const uploadedThumbnail =
+    course.custom_thumbnail_url ||
+    course.thumbnail_url ||
+    course.thumbnail ||
+    null;
+
+  // ── Final resolved thumbnail ──────────────────────────────────────────────
+  const thumbnailUrl = youtubeThumbnail || uploadedThumbnail || DEFAULT_THUMBNAIL;
+
+  // ── Debug logging (dev only) ──────────────────────────────────────────────
+  if (process.env.NODE_ENV !== "production") {
+    console.log(
+      "[CourseCard] Course:", course.title || course.course_name,
+      "| DB thumbnail:", dbThumbnail,
+      "| YouTube URL:", youtubeUrl,
+      "| Final:", thumbnailUrl
+    );
+  }
+
+  // ── onError fallback: maxresdefault → hqdefault → uploaded → hide ─────────
+  function handleImgError(e) {
+    const src = e.target.src;
+    if (youtubeUrl && src.includes("maxresdefault")) {
+      const hqThumb = getYoutubeThumbnail(youtubeUrl, "hq");
+      if (hqThumb && hqThumb !== src) {
+        e.target.src = hqThumb;
+        return;
+      }
+    }
+    if (uploadedThumbnail && src !== uploadedThumbnail) {
+      e.target.src = uploadedThumbnail;
+      return;
+    }
+    // Hide image and show icon placeholder
+    e.target.style.display = "none";
+  }
 
   return (
     <div
@@ -18,12 +67,13 @@ export default function CourseCard({ course, onClick }) {
     >
       <Link to={`/course/${course.id}`} className="block">
         <div className="relative aspect-video bg-richblack-900 overflow-hidden">
-          {thumbnail ? (
+          {thumbnailUrl ? (
             <img
-              src={thumbnail}
+              src={thumbnailUrl}
               alt={course.title || course.course_name}
               className={`w-full h-full object-cover transition-all duration-300 ${isHovered ? "scale-105" : ""}`}
               loading="lazy"
+              onError={handleImgError}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-richblack-500">

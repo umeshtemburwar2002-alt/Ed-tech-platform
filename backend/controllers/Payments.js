@@ -228,7 +228,7 @@ exports.getPaymentHistory = async (req, res) => {
 // Private Helper to Enroll Students
 const enrollStudents = async (courses, userId, paymentId) => {
     for (const courseId of courses) {
-        // Create active paid enrollment
+        // Create active paid enrollment in legacy enrollments table
         const { error: enrollError } = await supabase
             .from("enrollments")
             .insert([{
@@ -245,6 +245,23 @@ const enrollStudents = async (courses, userId, paymentId) => {
             }]);
 
         if (enrollError) throw enrollError;
+
+        // Create active paid enrollment in new course_enrollments table
+        const { error: courseEnrollmentError } = await supabase
+            .from("course_enrollments")
+            .insert([{
+                student_id: userId,
+                course_id: courseId,
+                payment_status: "paid",
+                enrolled_at: new Date().toISOString(),
+                progress: 0,
+                progress_percent: 0,
+                completed: false
+            }]);
+
+        if (courseEnrollmentError) {
+            console.error("course_enrollments table insert skipped/failed:", courseEnrollmentError.message);
+        }
 
         // Create or reset course player progress
         const { error: progressError } = await supabase

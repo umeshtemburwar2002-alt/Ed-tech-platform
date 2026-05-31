@@ -43,18 +43,54 @@ export const fetchCourseDetails = async (courseId) => {
   const toastId = toast.loading("Loading...")
   let result = null
   try {
-    const response = await apiConnector("POST", COURSE_DETAILS_API, {
-      courseId,
-    })
-    console.log("COURSE_DETAILS_API API RESPONSE............", response)
+    const { data: course, error } = await supabase
+      .from("courses")
+      .select(`
+        *,
+        instructor:instructor_id (
+          id, first_name, last_name, email, image, avatar_url, about
+        ),
+        category:category_id (
+          id, name, description
+        ),
+        sections (
+          id, section_name, course_id,
+          sub_sections (
+            id, title, time_duration, description, video_url
+          )
+        )
+      `)
+      .eq("id", courseId)
+      .single()
 
-    if (!response.data.success) {
-      throw new Error(response.data.message)
+    if (error) {
+      throw error
     }
-    result = response.data
+    
+    // Get enrollment count
+    const { count, error: countError } = await supabase
+      .from("enrollments")
+      .select("*", { count: 'exact', head: true })
+      .eq("course_id", courseId)
+
+    if (course) {
+      course.enrollment_count = count || 0;
+    }
+
+    // Wrap in expected structure for backward compatibility
+    result = {
+      success: true,
+      data: {
+        courseDetails: course,
+        totalDuration: "0" // You can calculate this if needed
+      }
+    }
   } catch (error) {
     console.log("COURSE_DETAILS_API API ERROR............", error)
-    result = error.response?.data
+    result = {
+      success: false,
+      message: error.message
+    }
   }
   toast.dismiss(toastId)
   return result

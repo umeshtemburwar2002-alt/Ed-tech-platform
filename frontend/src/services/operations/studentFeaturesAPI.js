@@ -71,6 +71,10 @@ export async function BuyCourse(
       prefill: {
         name: user_details ? `${user_details.firstName || ""} ${user_details.lastName || ""}`.trim() : "Student",
         email: user_details?.email || "",
+        contact: "9999999999"
+      },
+      notes: {
+        address: "Mumbai, Maharashtra, India"
       },
       theme: {
         color: "#6366F1", // Sleek modern indigo purple theme
@@ -85,8 +89,8 @@ export async function BuyCourse(
     toast.dismiss(toastId)
 
     // GRACEFUL SANDBOX FALLBACK:
-    // If the Razorpay key is missing or set to placeholder/test, run in Sandbox Simulation Mode
-    const isMockKey = !razorpayKey || razorpayKey.startsWith("rzp_test_placeholder") || razorpayKey === "your_razorpay_key";
+    // Only enters sandbox mode if no key is set at all. Real keys always open the live modal.
+    const isMockKey = !razorpayKey;
 
     if (isMockKey) {
       toast.success("Razorpay credentials absent. Launching checkout sandbox simulator...")

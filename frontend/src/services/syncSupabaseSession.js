@@ -7,22 +7,22 @@ import {
   clearClientSessionStores,
 } from "../utils/supabaseAuthHelpers";
 import { OAUTH_ROLE_KEY } from "../services/operations/googleAuthAPI";
- 
+
 // ─── helpers ────────────────────────────────────────────────────────────────
- 
+
 function nuclearClear() {
   clearClientSessionStores();
- 
+
   const supabaseUrl = process.env.REACT_APP_SUPABASE_URL ?? "";
-  const projectRef  = supabaseUrl.split("//")[1]?.split(".")[0] ?? "";
+  const projectRef = supabaseUrl.split("//")[1]?.split(".")[0] ?? "";
   if (projectRef) {
     localStorage.removeItem(`sb-${projectRef}-auth-token`);
     localStorage.removeItem(`sb-${projectRef}-provider-token`);
   }
- 
+
   sessionStorage.removeItem(OAUTH_ROLE_KEY);
 }
- 
+
 /**
  * Fetch profile with a hard timeout so a hanging RLS / network issue never
  * blocks auth initialisation. Uses Promise.race — AbortController alone is
@@ -62,7 +62,7 @@ async function fetchProfileWithTimeout(userId, timeoutMs = 10000) {
     return null;
   }
 }
- 
+
 // ─── deduplication guard ─────────────────────────────────────────────────────
 // Prevents simultaneous INITIAL_SESSION + SIGNED_IN events from both trying
 // to fetch the profile at the same time (race condition).
@@ -71,12 +71,12 @@ async function fetchProfileWithTimeout(userId, timeoutMs = 10000) {
 // causing a second profile fetch that can time out and overwrite good Redux
 // state with JWT-only data — so we skip redundant SIGNED_IN by access_token.
 let _applySessionInFlight = false;
-let _lastProcessedUserId   = null;
-let _lastProcessedEvent    = null;
+let _lastProcessedUserId = null;
+let _lastProcessedEvent = null;
 let _lastAppliedAccessToken = null;
- 
+
 // ─── core session handler ────────────────────────────────────────────────────
- 
+
 async function applySession(event, session, dispatch) {
   console.log("[syncSupabaseSession] applySession called:", {
     event,
@@ -91,19 +91,19 @@ async function applySession(event, session, dispatch) {
     nuclearClear();
     dispatch(setToken(null));
     dispatch(setUser(null));
-    _lastProcessedUserId   = null;
-    _lastProcessedEvent    = null;
+    _lastProcessedUserId = null;
+    _lastProcessedEvent = null;
     _lastAppliedAccessToken = null;
     return;
   }
- 
+
   // ── 2. Password-recovery — just store the token, nothing else ────────────
   if (event === "PASSWORD_RECOVERY") {
     console.log("[syncSupabaseSession] PASSWORD_RECOVERY event - storing token only");
     dispatch(setToken(session.access_token));
     return;
   }
- 
+
   // ── 3. Dedup: same event twice, in-flight, or redundant SIGNED_IN ─────────
   const userId = session.user.id;
   const token = session.access_token;
@@ -124,22 +124,22 @@ async function applySession(event, session, dispatch) {
     });
     return;
   }
- 
-  _applySessionInFlight    = true;
-  _lastProcessedUserId     = userId;
-  _lastProcessedEvent      = event;
- 
+
+  _applySessionInFlight = true;
+  _lastProcessedUserId = userId;
+  _lastProcessedEvent = event;
+
   try {
     console.log("[syncSupabaseSession] Processing session for user:", userId);
 
     // ── 4. Always set token immediately so UI doesn't flash logged-out ──────
     dispatch(setToken(session.access_token));
     console.log("[syncSupabaseSession] ✅ Token dispatched to Redux");
- 
+
     // ── 5. Fetch profile (with timeout) ─────────────────────────────────────
     console.log("[syncSupabaseSession] Fetching profile...");
     const profile = await fetchProfileWithTimeout(userId);
-    
+
     if (profile) {
       console.log("[syncSupabaseSession] ✅ Profile fetched:", {
         id: profile.id,
@@ -149,10 +149,10 @@ async function applySession(event, session, dispatch) {
     } else {
       console.warn("[syncSupabaseSession] ⚠️ Profile fetch returned null (timeout or error)");
     }
- 
+
     // ── 6. Build the app-level user object ───────────────────────────────────
     const appUser = buildAppUserFromSession(session, profile);
- 
+
     if (!appUser) {
       console.error("[syncSupabaseSession] ❌ buildAppUserFromSession returned null — signing out");
       nuclearClear();
@@ -161,7 +161,7 @@ async function applySession(event, session, dispatch) {
       await supabase.auth.signOut();
       return;
     }
- 
+
     console.log("[syncSupabaseSession] ✅ App user built:", {
       id: appUser.id,
       email: appUser.email,
@@ -181,16 +181,16 @@ async function applySession(event, session, dispatch) {
     _applySessionInFlight = false;
   }
 }
- 
+
 // ─── public API ─────────────────────────────────────────────────────────────
- 
+
 /**
  * Call once from your Redux store setup.
  * Returns an unsubscribe function.
  */
 export function subscribeSupabaseAuthToStore(dispatch) {
   console.log("[syncSupabaseSession] Initializing Supabase auth subscription...");
-  
+
   let disposed = false;
   let listener = null;
 
@@ -199,13 +199,13 @@ export function subscribeSupabaseAuthToStore(dispatch) {
     try {
       console.log("[syncSupabaseSession] Getting initial session...");
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session) {
         console.log("[syncSupabaseSession] ✅ Initial session found for user:", session.user.id);
       } else {
         console.log("[syncSupabaseSession] No initial session found");
       }
-      
+
       await applySession("INITIAL_SESSION", session, dispatch);
     } catch (err) {
       console.error("[syncSupabaseSession] ❌ initializeAuth error:", err);
@@ -239,10 +239,10 @@ export function subscribeSupabaseAuthToStore(dispatch) {
     // Register only after init so `SIGNED_IN` cannot race ahead of INITIAL_SESSION
     // and trigger a duplicate profile fetch + timeout noise.
     console.log("[syncSupabaseSession] Registering auth state change listener...");
-    
+
     const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("[syncSupabaseSession] Auth state changed:", event);
-      
+
       if (event === "INITIAL_SESSION") {
         if (!disposed) {
           dispatch(setAuthInitialized(true));
@@ -272,41 +272,41 @@ export function subscribeSupabaseAuthToStore(dispatch) {
     listener = null;
   };
 }
- 
+
 /**
  * Force-refresh Redux state from the live Supabase session.
  * Call after profile updates, role changes, etc.
  */
 export async function refreshAuthStateInStore(dispatch) {
   console.log("[syncSupabaseSession] Refreshing auth state from Supabase...");
-  
+
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     console.warn("[syncSupabaseSession] No active session to refresh");
     return;
   }
- 
+
   console.log("[syncSupabaseSession] Fetching fresh profile...");
   const profile = await fetchProfileWithTimeout(session.user.id);
   const appUser = buildAppUserFromSession(session, profile);
-  
+
   if (!appUser) {
     console.error("[syncSupabaseSession] Failed to build app user");
     return;
   }
- 
+
   dispatch(setToken(session.access_token));
   dispatch(setUser(appUser));
   persistClientSession(session.access_token, appUser);
   console.log("[syncSupabaseSession] ✅ Auth state refreshed");
 }
- 
+
 /**
  * Full logout — clears Supabase session, Redux state, and local storage.
  */
 export async function performLogout(dispatch, navigate) {
   console.log("[syncSupabaseSession] Performing logout...");
-  
+
   try {
     await supabase.auth.signOut({ scope: "global" });
     console.log("[syncSupabaseSession] ✅ Supabase signOut successful");
@@ -314,12 +314,12 @@ export async function performLogout(dispatch, navigate) {
     console.warn("[syncSupabaseSession] ⚠️ Supabase signOut error (continuing):", err);
     // ignore signOut errors — we clear local state regardless
   }
- 
+
   nuclearClear();
   dispatch(setToken(null));
   dispatch(setUser(null));
-  _lastProcessedUserId   = null;
-  _lastProcessedEvent    = null;
+  _lastProcessedUserId = null;
+  _lastProcessedEvent = null;
   _lastAppliedAccessToken = null;
 
   console.log("[syncSupabaseSession] ✅ Local state cleared");

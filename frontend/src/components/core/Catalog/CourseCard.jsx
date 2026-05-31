@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaStar, FaShoppingCart, FaHeart, FaPlayCircle } from 'react-icons/fa';
+import CourseActionButtons from '../../Course/CourseActionButtons';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -97,12 +97,19 @@ const CourseCard = ({ course, enrolled }) => {
                 {course.isFree || course.price === 0 ? "Free" : `₹${course.price}`}
               </span>
             </div>
-            <button 
-              onClick={handleEnrollNow} 
-              className="bg-cyan-500 hover:bg-cyan-400 text-black px-5 py-2.5 rounded-xl transition-all duration-300 font-black text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-95"
-            >
-              {course.isFree || course.price === 0 ? "Enroll Now" : "Buy Now"}
-            </button>
+            <CourseActionButtons
+                price={course.isFree || course.price === 0 ? 0 : course.price}
+                isFree={course.isFree || course.price === 0}
+                isEnrolled={user && course?.studentsEnrolled?.includes(user._id)}
+                onBuy={handleEnrollNow}
+                disableAddToCart={!user}
+
+                buyLoading={false}
+                addLoading={false}
+                enrolledRender={<button className="bg-cyan-500 hover:bg-cyan-400 text-black px-5 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  Go To Classroom
+                </button>}
+              />
           </div>
           <button 
             onClick={handleViewDetails}

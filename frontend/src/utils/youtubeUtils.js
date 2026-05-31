@@ -1,6 +1,13 @@
 /**
  * Production-Ready YouTube Utility Functions
  * Handles all YouTube URL formats, thumbnail fallbacks, and embed generation
+ *
+ * PRIMARY API:
+ *   getYoutubeThumbnail(url, quality?)
+ *     - Accepts a full YouTube URL string (any format)
+ *     - Returns thumbnail URL string, or null if URL is invalid
+ *     - quality: 'max' | 'hq' (default 'max' → maxresdefault.jpg)
+ *     - onError fallback: switch to hqdefault.jpg (handled in <img onError>)
  */
 
 // Extract YouTube video ID from ANY valid YouTube URL format
@@ -26,7 +33,6 @@ export function extractYouTubeVideoId(url) {
     const match = cleanUrl.match(pattern);
     if (match && match[1]) {
       const videoId = match[1];
-      // Validate 11-character YouTube video ID format
       if (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
         return videoId;
       }
@@ -35,6 +41,10 @@ export function extractYouTubeVideoId(url) {
   
   return null;
 }
+
+// Alias — used by lessonService.js and EditCourse.jsx
+export const getYoutubeVideoId = extractYouTubeVideoId;
+
 
 // Validate YouTube URL
 export function isValidYouTubeUrl(url) {
@@ -54,6 +64,45 @@ export function generateYouTubeThumbnailUrl(videoId, quality = 'high') {
   
   const selectedQuality = qualityMap[quality] || qualityMap.high;
   return `https://img.youtube.com/vi/${videoId}/${selectedQuality}.jpg`;
+}
+
+/**
+ * PRIMARY API: Get YouTube thumbnail from a full YouTube URL.
+ *
+ * Accepts any YouTube URL format:
+ *   - https://www.youtube.com/watch?v=VIDEO_ID
+ *   - https://youtu.be/VIDEO_ID
+ *   - https://youtube.com/embed/VIDEO_ID
+ *   - https://www.youtube.com/watch?v=VIDEO_ID&t=10s
+ *   - https://youtube.com/shorts/VIDEO_ID
+ *
+ * @param {string} url - Full YouTube URL
+ * @param {'max'|'hq'|'mq'|'default'} quality - Thumbnail quality (default: 'max')
+ * @returns {string|null} Thumbnail URL, or null if URL is invalid
+ *
+ * Usage in JSX:
+ *   const thumb = getYoutubeThumbnail(course.youtubeLink);
+ *   <img
+ *     src={thumb}
+ *     onError={(e) => {
+ *       if (e.target.src.includes('maxresdefault')) {
+ *         e.target.src = getYoutubeThumbnail(course.youtubeLink, 'hq');
+ *       }
+ *     }}
+ *   />
+ */
+export function getYoutubeThumbnail(url, quality = 'max') {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return null;
+
+  const qualityMap = {
+    max:     'maxresdefault',
+    hq:      'hqdefault',
+    mq:      'mqdefault',
+    default: 'default',
+  };
+  const q = qualityMap[quality] || qualityMap.max;
+  return `https://img.youtube.com/vi/${videoId}/${q}.jpg`;
 }
 
 // Get array of thumbnail URLs in fallback order

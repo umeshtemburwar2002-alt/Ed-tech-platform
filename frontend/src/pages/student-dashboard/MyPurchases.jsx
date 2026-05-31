@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { CreditCard, Calendar, Receipt, Download, AlertCircle, ShoppingBag } from 'lucide-react';
 import { GlassCard, Badge, Avatar, EmptyState, Modal } from '../../components/dashboard/Common';
-import { GetPaymentHistory } from '../../services/operations/studentFeaturesAPI';
+import { getUserEnrolledCourses } from '../../services/operations/profileAPI';
 import { toast } from 'react-hot-toast';
 
 const MyPurchases = () => {
@@ -16,8 +16,16 @@ const MyPurchases = () => {
       try {
         setLoading(true);
         if (token) {
-          const data = await GetPaymentHistory(token);
-          setPayments(data);
+          const data = await getUserEnrolledCourses(token);
+          const mappedPayments = (data || []).map(course => ({
+            id: course._id,
+            amount: course.price || 0,
+            course: { title: course.courseName },
+            razorpay_payment_id: "FREE_ENROLLMENT",
+            razorpay_order_id: "FREE_ORDER",
+            created_at: course.createdAt || new Date().toISOString(),
+          }));
+          setPayments(mappedPayments);
         }
       } catch (err) {
         console.error("Failed to load purchase history:", err);
@@ -98,18 +106,32 @@ const MyPurchases = () => {
           <div className="space-y-3">
             {payments.map((p) => {
               const courseTitle = p.course?.title || "Enrolled Course";
-              const courseThumb = p.course?.thumbnail || "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=120&h=120&fit=crop";
+              const ytId = p.course?.youtube_video_id || null;
+              const courseThumb =
+                (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null) ||
+                p.course?.youtube_thumbnail_url ||
+                p.course?.final_thumbnail_url ||
+                p.course?.thumbnail_url ||
+                (p.course?.thumbnail && !p.course.thumbnail.includes('unsplash') ? p.course.thumbnail : null) ||
+                null;
 
               return (
                 <GlassCard key={p.id} className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:border-white/20 transition-all">
                   
                   {/* Course info */}
                   <div className="flex items-center gap-4 min-w-0">
-                    <img 
-                      src={courseThumb} 
-                      alt="" 
-                      className="w-14 h-14 rounded-xl object-cover shrink-0 border border-white/10" 
-                    />
+                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-white/10 bg-richblack-900">
+                      {courseThumb ? (
+                        <img
+                          src={courseThumb}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={e => { e.target.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-indigo-600/30 to-purple-600/30" />
+                      )}
+                    </div>
                     <div className="min-w-0">
                       <h4 className="font-black text-sm text-white truncate max-w-md">{courseTitle}</h4>
                       <div className="flex items-center gap-2 mt-1.5 text-[10px] text-gray-500 font-bold uppercase tracking-widest">

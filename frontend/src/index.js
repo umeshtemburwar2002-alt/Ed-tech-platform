@@ -30,7 +30,27 @@ root.render(
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <App />
-        <Toaster />
+        <Toaster 
+          position="top-right" 
+          toastOptions={{
+            style: {
+              background: 'rgba(30,30,30,0.9)',
+              color: '#fff',
+              borderRadius: '12px',
+              backdropFilter: 'blur(10px)',
+            },
+            success: {
+              style: {
+                background: 'linear-gradient(to right, #4ade80, #16a34a)',
+              },
+            },
+            error: {
+              style: {
+                background: 'linear-gradient(to right, #f87171, #dc2626)',
+              },
+            },
+          }}
+        />
       </AuthProvider>
     </BrowserRouter>
   </Provider>

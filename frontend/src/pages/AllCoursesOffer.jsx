@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { toast } from 'react-hot-toast';
+import { addToWishlist, removeFromWishlist } from '../services/operations/wishlistAPI';
 import {
   FaStar,
   FaUsers,
@@ -35,7 +38,11 @@ const AllCoursesOffer = () => {
   const [selectedLevel, setSelectedLevel] = useState('All');
   const [sortBy, setSortBy] = useState('popularity');
   const [filteredCourses, setFilteredCourses] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
+  
+  const dispatch = useDispatch();
+  const { wishlist } = useSelector((state) => state.wishlist);
+  const { token } = useSelector((state) => state.auth);
+
   const [compareList, setCompareList] = useState([]);
   const [showComparison, setShowComparison] = useState(false);
   const [priceRange, setPriceRange] = useState([0, 2000]);
@@ -48,12 +55,17 @@ const AllCoursesOffer = () => {
   const instructors = ['All', ...new Set(courses.map(course => course.instructor))];
 
   // Utility functions
-  const toggleWishlist = (courseId) => {
-    setWishlist(prev => 
-      prev.includes(courseId) 
-        ? prev.filter(id => id !== courseId)
-        : [...prev, courseId]
-    );
+  const handleToggleWishlist = (course) => {
+    if (!token) {
+      toast.error('Please log in to add to wishlist');
+      return;
+    }
+    const isWishlisted = wishlist.some((item) => item.id === course.id);
+    if (isWishlisted) {
+      dispatch(removeFromWishlist(course.id, token));
+    } else {
+      dispatch(addToWishlist(course.id, course, token));
+    }
   };
 
   const toggleCompare = (courseId) => {
@@ -333,9 +345,9 @@ const AllCoursesOffer = () => {
                     
                     {/* Wishlist Button */}
                     <button
-                      onClick={() => toggleWishlist(course.id)}
+                      onClick={() => handleToggleWishlist(course)}
                       className={`p-2 backdrop-blur-sm rounded-full transition-colors ${
-                        wishlist.includes(course.id)
+                        wishlist.some(item => item.id === course.id)
                           ? 'bg-pink-500 text-white'
                           : 'bg-white/20 text-white hover:bg-white/30'
                       }`}

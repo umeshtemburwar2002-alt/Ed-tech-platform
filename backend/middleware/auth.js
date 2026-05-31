@@ -236,11 +236,10 @@ exports.verifyEnrollment = async (req, res, next) => {
         console.log("[verifyEnrollment] Checking enrollment for paid course...");
         
         const { data: enrollment, error: enrollError } = await supabase
-            .from("enrollments")
+            .from("course_enrollments")
             .select("*")
             .eq("course_id", course.id)
             .eq("student_id", userId)
-            .eq("enrollment_status", "active")
             .maybeSingle();
 
         if (enrollError) {

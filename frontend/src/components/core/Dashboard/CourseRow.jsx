@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { FaEye, FaEdit, FaTrash, FaUsers, FaStar } from "react-icons/fa";
+import { FaEye, FaEdit, FaTrash, FaUsers, FaStar, FaPlay } from "react-icons/fa";
+import { getYoutubeThumbnail } from "../../../utils/youtubeUtils";
 
 const STATUS = {
   draft:     "bg-slate-500/10  text-slate-400  border border-slate-500/20",
@@ -10,6 +11,27 @@ const STATUS = {
 };
 
 const CourseRow = React.forwardRef(({ course, onView, onEdit, onDelete }, ref) => {
+  // Resolve thumbnail using correct DB column names
+  // Priority: DB pre-computed > YouTube generated > uploaded > null
+  const dbThumbnail = course.final_thumbnail_url || course.youtube_thumbnail_url || null;
+  const youtubeUrl =
+    course.preview_video_url ||
+    course.youtube_video_url ||
+    null;
+  const youtubeThumbnail = dbThumbnail || getYoutubeThumbnail(youtubeUrl);
+  const uploadedThumbnail = course.custom_thumbnail_url || course.thumbnail_url || course.thumbnail || null;
+  const resolvedThumbnail = youtubeThumbnail || uploadedThumbnail || null;
+
+  function handleImgError(e) {
+    const src = e.target.src;
+    if (youtubeUrl && src.includes("maxresdefault")) {
+      const hq = getYoutubeThumbnail(youtubeUrl, "hq");
+      if (hq && hq !== src) { e.target.src = hq; return; }
+    }
+    if (uploadedThumbnail && src !== uploadedThumbnail) { e.target.src = uploadedThumbnail; return; }
+    e.target.style.display = "none";
+  }
+
   return (
     <motion.tr
       ref={ref}
@@ -22,8 +44,18 @@ const CourseRow = React.forwardRef(({ course, onView, onEdit, onDelete }, ref) =
       {/* Course Info */}
       <td className="py-5 px-6">
         <div className="flex items-center gap-4">
-          <div className="w-20 aspect-video rounded-lg overflow-hidden bg-richblack-900 border border-richblack-700 shrink-0">
-            <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+          <div className="w-20 aspect-video rounded-lg overflow-hidden bg-richblack-900 border border-richblack-700 shrink-0 flex items-center justify-center">
+            {resolvedThumbnail ? (
+              <img
+                src={resolvedThumbnail}
+                alt={course.title}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                onError={handleImgError}
+                loading="lazy"
+              />
+            ) : (
+              <FaPlay className="text-richblack-600 text-lg" />
+            )}
           </div>
           <div className="min-w-0">
             <p className="font-bold text-richblack-5 line-clamp-1 text-sm group-hover:text-yellow-50 transition-colors">{course.title}</p>
@@ -94,3 +126,4 @@ const CourseRow = React.forwardRef(({ course, onView, onEdit, onDelete }, ref) =
 CourseRow.displayName = "CourseRow";
 
 export default CourseRow;
+

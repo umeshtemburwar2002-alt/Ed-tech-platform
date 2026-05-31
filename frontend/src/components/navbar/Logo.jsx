@@ -5,8 +5,6 @@ export default function Logo() {
   const [scrolled, setScrolled] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const { scrollY } = useScroll();
-  const rotation = useTransform(scrollY, [0, 1000], [0, 360]);
-
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -31,20 +29,9 @@ export default function Logo() {
           viewBox="0 0 100 100"
           initial="initial"
           animate={isHovered ? "hover" : "animate"}
-          style={{ rotate: rotation }}
         >
           <defs>
-            <linearGradient id="hexGradNav" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#6C47FF" />
-              <stop offset="50%" stopColor="#00D4AA" />
-              <stop offset="100%" stopColor="#6C47FF" />
-            </linearGradient>
-            <linearGradient id="hexGradNavHover" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FF6C6C" />
-              <stop offset="50%" stopColor="#FFD700" />
-              <stop offset="100%" stopColor="#FF6C6C" />
-            </linearGradient>
-            <filter id="glowNav">
+            <filter id="glowBracket">
               <feGaussianBlur stdDeviation="3" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
@@ -53,45 +40,51 @@ export default function Logo() {
             </filter>
           </defs>
           
-          <motion.polygon
-            points="50,5 95,30 95,70 50,95 5,70 5,30"
-            fill="none"
-            animate={{
-              stroke: isHovered ? "url(#hexGradNavHover)" : "url(#hexGradNav)"
-            }}
-            transition={{ duration: 0.4, ease: "easeInOut" }}
-            strokeWidth="4"
-            filter={isHovered ? "url(#glowNav)" : "none"}
-            variants={{
-              initial: { pathLength: 0, opacity: 0 },
-              animate: { pathLength: 1, opacity: 1, transition: { duration: 0.8, ease: "easeInOut" } },
-              hover: { scale: 1.05, transition: { duration: 0.2 } }
-            }}
-          />
-          
-          <motion.g opacity={0.6}>
-            <motion.line
-              x1="25" y1="50" x2="75" y2="50"
-              animate={{
-                stroke: isHovered ? "#FF6C6C" : "#6C47FF"
-              }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              strokeWidth="2"
+          <motion.g style={{ transformOrigin: "50% 50%" }}>
+            {/* Left Bracket */}
+            <motion.path
+              d="M 35 25 L 10 50 L 35 75"
+              fill="none"
+              stroke="#9333EA"
+              strokeWidth="12"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter={isHovered ? "url(#glowBracket)" : "none"}
               variants={{
                 initial: { pathLength: 0, opacity: 0 },
-                animate: { pathLength: 1, opacity: 0.8, transition: { delay: 0.4, duration: 0.6 } }
+                animate: { pathLength: 1, opacity: 1, transition: { duration: 0.8, ease: "easeInOut" } },
+                hover: { scale: 1.05, stroke: "#A855F7", transition: { duration: 0.2 } }
               }}
             />
-            <motion.line
-              x1="50" y1="25" x2="50" y2="75"
-              animate={{
-                stroke: isHovered ? "#FFD700" : "#00D4AA"
-              }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              strokeWidth="2"
+            
+            {/* Slash */}
+            <motion.path
+              d="M 60 15 L 40 85"
+              fill="none"
+              stroke="#0EA5E9"
+              strokeWidth="12"
+              strokeLinecap="round"
+              filter={isHovered ? "url(#glowBracket)" : "none"}
               variants={{
                 initial: { pathLength: 0, opacity: 0 },
-                animate: { pathLength: 1, opacity: 0.8, transition: { delay: 0.5, duration: 0.6 } }
+                animate: { pathLength: 1, opacity: 1, transition: { delay: 0.2, duration: 0.8, ease: "easeInOut" } },
+                hover: { scale: 1.05, stroke: "#38BDF8", transition: { duration: 0.2 } }
+              }}
+            />
+            
+            {/* Right Bracket */}
+            <motion.path
+              d="M 65 25 L 90 50 L 65 75"
+              fill="none"
+              stroke="#10B981"
+              strokeWidth="12"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter={isHovered ? "url(#glowBracket)" : "none"}
+              variants={{
+                initial: { pathLength: 0, opacity: 0 },
+                animate: { pathLength: 1, opacity: 1, transition: { delay: 0.4, duration: 0.8, ease: "easeInOut" } },
+                hover: { scale: 1.05, stroke: "#34D399", transition: { duration: 0.2 } }
               }}
             />
           </motion.g>
@@ -99,7 +92,6 @@ export default function Logo() {
       </div>
 
       <AnimatePresence>
-        {!scrolled && (
           <motion.div
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -142,7 +134,6 @@ export default function Logo() {
               {academyName}
             </motion.span>
           </motion.div>
-        )}
       </AnimatePresence>
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { createOrder, confirmPayment } from '../services/operations/orderAPI';
 import { FaCreditCard, FaCheckCircle, FaChevronRight, FaStar, FaUsers, FaPlayCircle, FaTag, FaTicketAlt } from 'react-icons/fa';
 import { resetCart } from '../slices/cartSlice';
 import { addToEnrolledCourses } from '../slices/profileSlice';
@@ -77,48 +78,94 @@ const CoursePurchase = () => {
     }
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const existingScript = document.getElementById('razorpay-script');
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.id = 'razorpay-script';
+        script.onload = () => {
+          resolve(true);
+        };
+        script.onerror = () => {
+          resolve(false);
+        };
+        document.body.appendChild(script);
+      } else {
+        resolve(true);
+      }
+    });
+  };
+
   const handleConfirmPurchase = async () => {
+    if (!user) {
+      toast.error('Please login to proceed');
+      navigate('/login');
+      return;
+    }
     setIsProcessing(true);
-    
     try {
-      // In a real app, you'd process payment here
-      // For now, we simulate success and add to Supabase enrollments
-      
-      for (const course of purchaseItems) {
-        const { error: enrollError } = await supabase
-          .from("enrollments")
-          .insert([{
-            user_id: user.id,
-            course_id: course.id,
-            enrolled_at: new Date().toISOString()
-          }]);
-          
-        if (enrollError) throw enrollError;
-        
-        // Update local state
-        dispatch(addToEnrolledCourses(course));
+      // Create order on backend
+      const orderData = await createOrder(purchaseItems, subtotal - discountAmount);
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error('Razorpay SDK failed to load');
       }
-
-      setIsProcessing(false);
-      setIsSuccess(true);
-      toast.success("Payment Successful!");
-      
-      // If it was a cart purchase, clear the cart
-      if (!directCourse) {
-        dispatch(resetCart());
-      }
-
-      // Redirect to My Courses page after a short delay
-      setTimeout(() => {
-        navigate("/dashboard/enrolled-courses");
-      }, 1000);
-
-    } catch (error) {
-      console.error("Enrollment error:", error);
-      toast.error("Payment failed. Please try again.");
+      const options = {
+        key: process.env.REACT_APP_RAZORPAY_KEY || 'rzp_test_YourKey', // Replace with actual key
+        amount: orderData.amount, // amount in paise
+        currency: orderData.currency || 'INR',
+        name: 'EdTech Platform',
+        description: 'Course Purchase',
+        order_id: orderData.orderId,
+        handler: async function (response) {
+          try {
+            // Verify payment on backend
+            await confirmPayment(orderData.orderId, response.razorpay_payment_id, response.razorpay_signature, purchaseItems[0]?.id);
+            // Enroll courses after successful verification
+            for (const course of purchaseItems) {
+              const { error: enrollError } = await supabase
+                .from('enrollments')
+                .insert([
+                  {
+                    user_id: user.id,
+                    course_id: course.id,
+                    enrolled_at: new Date().toISOString(),
+                  },
+                ]);
+              if (enrollError) throw enrollError;
+              dispatch(addToEnrolledCourses(course));
+            }
+            setIsSuccess(true);
+            toast.success('Payment Successful!');
+            if (!directCourse) {
+              dispatch(resetCart());
+            }
+            setTimeout(() => navigate('/dashboard/enrolled-courses'), 1000);
+          } catch (err) {
+            console.error('Verification/Enrollment error:', err);
+            toast.error('Payment verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+        },
+        theme: {
+          color: '#6a0dad',
+        },
+      };
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error('Payment error:', err);
+      toast.error(err.message || 'Payment failed. Please try again.');
+    } finally {
       setIsProcessing(false);
     }
   };
+
 
   if (isSuccess) {
     return (

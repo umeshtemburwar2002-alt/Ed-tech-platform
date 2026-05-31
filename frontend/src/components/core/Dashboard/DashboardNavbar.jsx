@@ -11,7 +11,7 @@ import {
   FaChevronDown,
   FaShoppingCart 
 } from 'react-icons/fa';
-import NotificationDropdown from '../../../components/dropdowns/NotificationDropdown';
+import NotificationDropdown from '../../../components/common/NotificationDropdown';
 import ProfileDropdown from '../../common/ProfileDropdown';
 import useOnClickOutside from '../../../hooks/useOnClickOutside';
 
@@ -25,7 +25,6 @@ const DashboardNavbar = () => {
   const handleSectionNav = (id) => {
     // Map section ids to routes
     const routes = {
-      "all-courses": "/all-courses",
       "my-courses": "/dashboard/instructor/my-courses",
       "add-course": "/dashboard/instructor/add-course",
     };
@@ -81,25 +80,16 @@ const DashboardNavbar = () => {
     }
   };
 
-  const menuItems = [
-    ...(user?.accountType === "Student" 
-      ? [
-          { id: 'home', name: 'Home', path: '/' },
-          { id: 'explore-courses', name: 'Explore Courses', path: '/explore-courses' },
-          { id: 'students', name: 'Students', path: '/students' },
-          { id: 'about', name: 'About', path: '/about' },
-          { id: 'contact', name: 'Contact', path: '/contact' },
-          { id: 'all-courses', name: 'Browse Courses' }
-        ] 
-      : [
-          // No menu items shown in top navbar for instructors (they're in profile dropdown)
-        ]),
+  const baseMenuItems = [
+    { id: 'home', name: 'Home', path: '/' },
+    { id: 'explore-courses', name: 'Explore Courses', path: '/explore-courses' },
+    { id: 'students', name: 'Students', path: '/students' },
+    { id: 'about', name: 'About', path: '/about' },
+    { id: 'contact', name: 'Contact', path: '/contact' },
   ];
-
-  const notifications = [
-    { id: 1, title: 'New Lecture', message: 'Introduction to React Hooks added', time: '2 hours ago' },
-    { id: 2, title: 'Quiz Reminder', message: 'JavaScript Quiz due tomorrow', time: '5 hours ago' },
-  ];
+  const menuItems = baseMenuItems.filter(
+    (item) => !(item.name === 'Explore Courses' && ['Instructor', 'Student'].includes(user?.accountType))
+  );
 
   const isActive = (id) => false; // We handle this via state now
 
@@ -158,8 +148,6 @@ const DashboardNavbar = () => {
               onClick={() => {
                 if (item.path) {
                   navigate(item.path);
-                } else if (item.id === 'all-courses') {
-                  navigate('/all-courses');
                 } else {
                   handleSectionNav(item.id);
                 }
@@ -311,8 +299,8 @@ const DashboardNavbar = () => {
                     </Link>
                   </li>
                 )}
-                {/* For students, show menu items; for instructors, no menu items here */}
-                {user?.accountType === "Student" && menuItems.map((item) => (
+                {/* Show menu items for all users */}
+                {menuItems.map((item) => (
                   <li key={item.id}>
                     <Link
                       to={item.path || '#'}

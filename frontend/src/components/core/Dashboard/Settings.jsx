@@ -50,6 +50,7 @@ export default function Settings() {
       await dispatch(deleteProfile(token, navigate));
     } catch (e) {
       toast.error("Failed to delete account");
+    } finally {
       setDeleting(false);
     }
   };

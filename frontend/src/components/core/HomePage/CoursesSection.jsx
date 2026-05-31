@@ -65,18 +65,25 @@ export default function CoursesSection() {
         ) : courses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
             {courses.slice(0, 6).map((course, index) => (
-              <CourseCard
+          <CourseCard
                 key={course.id || index}
                 course={{
                   id: course.id,
                   title: course.title || course.course_name || "Untitled Course",
                   description: course.description || course.course_description || "",
-                  thumbnail: course.thumbnail,
+                  // Thumbnail fields — correct DB column names
+                  thumbnail: course.thumbnail || null,
+                  thumbnail_url: course.thumbnail_url || null,
+                  custom_thumbnail_url: course.custom_thumbnail_url || null,
+                  final_thumbnail_url: course.final_thumbnail_url || null,
+                  youtube_thumbnail_url: course.youtube_thumbnail_url || null,
+                  youtube_video_url: course.youtube_video_url || null,
+                  preview_video_url: course.preview_video_url || null,
                   price: course.price,
-                  rating: 4.8, // Mocked for now
-                  duration: "4 Months", // Mocked for now
-                  level: "Intermediate", // Mocked for now
-                  isFree: course.price === 0
+                  rating: course.average_rating || course.rating || 0,
+                  duration: course.total_duration || "Self-Paced",
+                  level: course.level || "Intermediate",
+                  isFree: course.is_free || course.price === 0,
                 }}
                 index={index}
               />
@@ -97,7 +104,7 @@ export default function CoursesSection() {
           className="text-center mt-20"
         >
           <button
-            onClick={() => navigate('/all-courses')}
+            onClick={() => navigate('/explore-courses')}
             className="group relative px-8 py-4 bg-gray-900 text-white font-bold rounded-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 active:scale-95"
           >
             <span className="relative z-10 flex items-center gap-2">

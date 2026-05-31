@@ -16,103 +16,152 @@ const About = () => {
   ];
 
   const renderGuestAbout = () => (
-    <div className="space-y-24">
+    <div className="space-y-32">
       {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="text-center space-y-6 max-w-4xl mx-auto px-6">
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-5xl md:text-6xl font-extrabold text-white leading-tight">
-            Empowering the Next Generation of <span className="text-gradient">Tech Leaders</span>
+      <section className="relative py-24 overflow-hidden text-center">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-4xl bg-blue-600/10 rounded-full blur-[120px] -z-10 mix-blend-screen"></div>
+        <div className="space-y-8 max-w-5xl mx-auto px-6 relative z-10">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-block px-5 py-2 rounded-full bg-white/5 border border-white/10 text-cyan-400 font-bold text-sm tracking-wide backdrop-blur-md shadow-[0_0_20px_rgba(34,211,238,0.15)]">
+            Our Story & Vision
+          </motion.div>
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-5xl md:text-7xl font-extrabold text-white leading-[1.1] tracking-tight">
+            Empowering the Next Generation of <br className="hidden md:block"/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500">Tech Leaders</span>
           </motion.h1>
-          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-xl text-slate-400">
-            We bridge the gap between traditional education and industry requirements. Our mission is to make high-quality tech education accessible to everyone, everywhere.
+          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-xl text-slate-400 font-medium max-w-3xl mx-auto leading-relaxed">
+            We bridge the gap between traditional education and industry requirements. Our mission is to make high-quality, practical tech education accessible to everyone, everywhere.
           </motion.p>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex justify-center gap-4">
-            <Link to="/signup" className="btn-primary">Join Now</Link>
-            <Link to="/all-courses" className="btn-secondary bg-white/5 border-white/10 text-white hover:bg-white/10">Browse Courses</Link>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex justify-center gap-6 pt-4">
+            <Link to="/signup" className="group relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl blur opacity-70 group-hover:opacity-100 transition duration-200"></div>
+              <button className="relative px-8 py-4 bg-[#0B1228] text-white font-bold rounded-xl text-lg flex items-center gap-2 hover:scale-[0.98] transition-transform border border-white/10">
+                Join Now <i className="fas fa-arrow-right text-sm"></i>
+              </button>
+            </Link>
+            <Link to="/all-courses" className="px-8 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-xl hover:bg-white/10 transition-all backdrop-blur-sm text-lg">
+              Browse Courses
+            </Link>
           </motion.div>
         </div>
       </section>
 
       {/* Mission & Vision */}
-      <section className="grid md:grid-cols-2 gap-12 px-6">
-        <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="glass-dark p-10 rounded-[2.5rem] space-y-4 border border-white/5">
-          <div className="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-blue-500/20">
+      <section className="grid md:grid-cols-2 gap-8 px-6 max-w-7xl mx-auto">
+        <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.6 }} className="relative bg-white/[0.02] p-12 rounded-[3rem] space-y-6 border border-white/10 overflow-hidden group hover:border-blue-500/30 transition-colors backdrop-blur-md">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 group-hover:bg-blue-500/20 transition-colors"></div>
+          <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center text-2xl border border-blue-500/30 shadow-[0_0_30px_rgba(59,130,246,0.2)]">
             <i className="fas fa-bullseye"></i>
           </div>
-          <h2 className="text-3xl font-bold text-white">Our Mission</h2>
+          <h2 className="text-3xl font-extrabold text-white">Our Mission</h2>
           <p className="text-slate-400 leading-relaxed text-lg">
             Traditional education often lags behind rapidly evolving tech trends. We solve this by providing industry-aligned curriculum, real-world projects, and direct mentorship from experts at top tech companies.
           </p>
         </motion.div>
-        <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="glass-dark p-10 rounded-[2.5rem] space-y-4 border border-white/5">
-          <div className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/20">
+        
+        <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.6 }} className="relative bg-white/[0.02] p-12 rounded-[3rem] space-y-6 border border-white/10 overflow-hidden group hover:border-purple-500/30 transition-colors backdrop-blur-md">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 group-hover:bg-purple-500/20 transition-colors"></div>
+          <div className="w-16 h-16 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center text-2xl border border-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.2)]">
             <i className="fas fa-eye"></i>
           </div>
-          <h2 className="text-3xl font-bold text-white">Our Vision</h2>
+          <h2 className="text-3xl font-extrabold text-white">Our Vision</h2>
           <p className="text-slate-400 leading-relaxed text-lg">
-            We envision a world where your location or background doesn't dictate your career potential. We're building the future of digital learning—personalized, interactive, and outcome-driven.
+            We envision a world where your location or background doesn't dictate your career potential. We're building the future of digital learning—personalized, interactive, and fiercely outcome-driven.
           </p>
         </motion.div>
       </section>
 
       {/* Stats Section */}
-      <section className="glass-dark rounded-[3rem] py-16 px-6 shadow-2xl overflow-hidden relative border border-white/5">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
+      <section className="bg-white/[0.02] border y-white/5 py-20 px-6 backdrop-blur-sm relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 via-purple-900/10 to-cyan-900/10 z-0"></div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto relative z-10">
           {stats.map((stat, idx) => (
-            <div key={idx} className="text-center space-y-2">
-              <div className="text-blue-400 text-3xl mb-4">
+            <motion.div 
+              key={idx} 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.1 }}
+              className="text-center space-y-4 group"
+            >
+              <div className="text-cyan-400 text-4xl mb-2 group-hover:scale-110 transition-transform group-hover:text-cyan-300">
                 <i className={`fas ${stat.icon}`}></i>
               </div>
-              <h3 className="text-4xl font-bold text-white">{stat.value}</h3>
-              <p className="text-slate-400 font-medium">{stat.label}</p>
-            </div>
+              <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">{stat.value}</h3>
+              <p className="text-slate-400 font-bold tracking-widest uppercase text-sm group-hover:text-slate-200 transition-colors">{stat.label}</p>
+            </motion.div>
           ))}
         </div>
       </section>
 
       {/* Why Choose Us */}
-      <section className="space-y-12">
+      <section className="space-y-16 px-6 max-w-7xl mx-auto">
         <div className="text-center space-y-4">
-          <h2 className="text-4xl font-bold text-white">Why Choose Us?</h2>
-          <p className="text-slate-400 max-w-2xl mx-auto">We don't just teach code; we build careers through a comprehensive learning ecosystem.</p>
+          <h2 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">Why <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">Choose Us?</span></h2>
+          <p className="text-slate-400 text-lg max-w-2xl mx-auto">We don't just teach code; we build careers through a comprehensive, supportive learning ecosystem.</p>
         </div>
-        <div className="grid md:grid-cols-4 gap-6 px-6">
+        <div className="grid md:grid-cols-4 gap-6">
           {[
-            { title: 'Real-World Projects', desc: 'Build portfolio-ready projects that mirror actual industry tasks.', icon: 'fa-laptop-code' },
-            { title: 'Industry Mentors', desc: 'Get guidance from seniors at Google, Amazon, and Meta.', icon: 'fa-chalkboard-teacher' },
-            { title: 'Flexible Learning', desc: 'Study at your own pace with lifetime access to all content.', icon: 'fa-clock' },
-            { title: 'Verified Certificates', desc: 'Earn certificates recognized by top global recruiters.', icon: 'fa-certificate' }
+            { title: 'Real-World Projects', desc: 'Build portfolio-ready projects that mirror actual industry tasks.', icon: 'fa-laptop-code', color: 'text-blue-400' },
+            { title: 'Industry Mentors', desc: 'Get guidance from seniors at Google, Amazon, and Meta.', icon: 'fa-chalkboard-teacher', color: 'text-purple-400' },
+            { title: 'Flexible Learning', desc: 'Study at your own pace with lifetime access to all content.', icon: 'fa-clock', color: 'text-amber-400' },
+            { title: 'Verified Certificates', desc: 'Earn certificates recognized by top global recruiters.', icon: 'fa-certificate', color: 'text-emerald-400' }
           ].map((item, idx) => (
-            <motion.div key={idx} whileHover={{ y: -10 }} className="glass-dark p-8 rounded-3xl text-center space-y-4 hover:shadow-2xl transition-all duration-300 border border-white/5">
-              <div className="w-16 h-16 bg-white/5 text-blue-400 rounded-full flex items-center justify-center text-2xl mx-auto border border-white/10">
-                <i className={`fas ${item.icon}`}></i>
+            <motion.div 
+              key={idx} 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ delay: idx * 0.1 }}
+              whileHover={{ y: -10 }} 
+              className="bg-white/[0.02] p-8 rounded-3xl text-center space-y-6 hover:bg-white/[0.05] transition-all duration-300 border border-white/5 hover:border-white/20 backdrop-blur-md group relative overflow-hidden"
+            >
+              <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-3xl mx-auto border border-white/10 group-hover:scale-110 transition-transform">
+                <i className={`fas ${item.icon} ${item.color}`}></i>
               </div>
-              <h3 className="text-xl font-bold text-white">{item.title}</h3>
-              <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
+              <h3 className="text-xl font-bold text-white tracking-wide">{item.title}</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* Success Stories */}
-      <section className="bg-blue-600/10 border border-blue-500/20 rounded-[3rem] py-20 px-6 text-white text-center space-y-12">
-        <h2 className="text-4xl font-bold text-white">Student Success Stories</h2>
-        <div className="grid md:grid-cols-3 gap-8">
-          {[
-            { name: 'Rohan Mehta', role: 'SDE at Microsoft', text: 'The Full-Stack course changed my life. I went from zero coding knowledge to a 15 LPA package.', img: 'https://i.pravatar.cc/150?u=rohan' },
-            { name: 'Ananya Iyer', role: 'UI/UX Designer', text: 'The mentorship here is unmatched. My portfolio went from basic to professional in 3 months.', img: 'https://i.pravatar.cc/150?u=ananya' },
-            { name: 'Vikram Singh', role: 'Data Scientist', text: 'Real-world datasets and expert feedback helped me crack my dream role in AI.', img: 'https://i.pravatar.cc/150?u=vikram' }
-          ].map((story, idx) => (
-            <div key={idx} className="glass-dark backdrop-blur-md p-8 rounded-[2.5rem] space-y-6 border border-white/10">
-              <img src={story.img} alt={story.name} className="w-20 h-20 rounded-full mx-auto border-4 border-white/10" />
-              <p className="italic text-lg text-slate-300">"{story.text}"</p>
-              <div>
-                <h4 className="font-bold text-xl text-white">{story.name}</h4>
-                <p className="text-blue-400 text-sm">{story.role}</p>
-              </div>
-            </div>
-          ))}
+      <section className="px-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 to-transparent z-0"></div>
+        <div className="max-w-7xl mx-auto relative z-10 space-y-16 py-12">
+          <div className="text-center">
+            <h2 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">Student <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-400">Success Stories</span></h2>
+            <p className="text-slate-400 text-lg mt-4">See how our platform has transformed careers worldwide.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { name: 'Rohan Mehta', role: 'SDE at Microsoft', text: 'The Full-Stack course changed my life. I went from zero coding knowledge to a 15 LPA package.', img: 'https://api.dicebear.com/5.x/initials/svg?seed=RM' },
+              { name: 'Ananya Iyer', role: 'UI/UX Designer', text: 'The mentorship here is unmatched. My portfolio went from basic to professional in 3 months.', img: 'https://api.dicebear.com/5.x/initials/svg?seed=AI' },
+              { name: 'Vikram Singh', role: 'Data Scientist', text: 'Real-world datasets and expert feedback helped me crack my dream role in AI.', img: 'https://api.dicebear.com/5.x/initials/svg?seed=VS' }
+            ].map((story, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.15 }}
+                className="bg-white/[0.03] backdrop-blur-md p-8 rounded-[2.5rem] space-y-6 border border-white/10 hover:border-pink-500/30 transition-all hover:shadow-[0_0_30px_rgba(236,72,153,0.1)] group relative"
+              >
+                <div className="absolute -top-6 -right-6 text-8xl text-white/[0.02] font-serif group-hover:text-white/[0.05] transition-colors z-0">"</div>
+                <div className="relative z-10">
+                  <div className="relative inline-block mb-6">
+                    <div className="absolute inset-0 bg-pink-500/30 rounded-full blur animate-pulse"></div>
+                    <img src={story.img} alt={story.name} className="relative w-20 h-20 rounded-full border-2 border-white/20 object-cover group-hover:scale-105 transition-transform" />
+                  </div>
+                  <p className="italic text-slate-300 text-lg leading-relaxed flex-1 min-h-[100px]">"{story.text}"</p>
+                  <div className="pt-6 mt-4 border-t border-white/10">
+                    <h4 className="font-bold text-xl text-white tracking-wide">{story.name}</h4>
+                    <p className="text-pink-400 font-semibold text-sm mt-1">{story.role}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
     </div>
@@ -261,9 +310,7 @@ const About = () => {
 
       <div className="container mx-auto px-6 relative z-10">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          {!isLoggedIn && renderGuestAbout()}
-          {isLoggedIn && userRole === 'student' && renderStudentAbout()}
-          {isLoggedIn && userRole === 'instructor' && renderTeacherAbout()}
+          {renderGuestAbout()}
         </motion.div>
 
         {/* Global Footer CTA for Guests */}

@@ -1,4 +1,3 @@
-// This file has been deleted as requested.
 import { useSelector } from "react-redux"
 import { Outlet, useNavigate } from "react-router-dom"
 import { useEffect } from "react"
@@ -12,7 +11,7 @@ function Dashboard() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Log authentication state for debugging
+    
     console.log("Dashboard - Auth State:", { 
       profileLoading, 
       authLoading, 
@@ -20,7 +19,7 @@ function Dashboard() {
       hasToken: !!token 
     })
     
-    // Check if authentication data exists
+    
     if (!profileLoading && !authLoading && (!user || !token)) {
       console.warn("Dashboard detected missing auth data, redirecting to login")
       navigate("/login")
@@ -35,7 +34,7 @@ function Dashboard() {
     )
   }
 
-  // Defensive check for user data
+  
   if (!user) {
     console.error("Dashboard rendered without user data")
     return (

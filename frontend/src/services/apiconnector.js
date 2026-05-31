@@ -73,9 +73,9 @@ export const apiConnector = async (method, url, bodyData, headers, params) => {
     const response = await axiosInstance({
       method: method,
       url: url,
-      data: bodyData ? bodyData : null,
-      headers: headers ? headers : null,
-      params: params ? params : null,
+      data: bodyData ? bodyData : undefined,
+      headers: headers ? headers : undefined,
+      params: params ? params : undefined,
     });
 
     console.log("[apiConnector] ✅ Request successful:", {

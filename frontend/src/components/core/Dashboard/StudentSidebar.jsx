@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { NavLink, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import LogoMark from "../../../components/ui/LogoMark";
+import Logo from "../../../components/navbar/Logo";
 import { 
   FaHome, 
   FaBook, 
@@ -30,40 +30,35 @@ import {
   FaHistory
 } from "react-icons/fa";
 
-const sidebarLinks = [
+const baseSidebarLinks = [
   { id: "dashboard", label: "Dashboard", icon: FaHome, path: "/dashboard/my-profile" },
   { id: "my-learning", label: "My Learning", icon: FaBook, path: "/dashboard/enrolled-courses" },
   { id: "explore-courses", label: "Explore Courses", icon: FaBook, path: "/course-catalog" },
   { id: "learning-roadmaps", label: "Learning Roadmaps", icon: FaChartLine, path: "/dashboard/learning-path" },
   { id: "purchase-history", label: "My Purchases", icon: FaHistory, path: "/dashboard/purchase-history" },
-  { id: "wishlist", label: "Wishlist", icon: FaStar, path: "/dashboard/wishlist" },
   { id: "assignments", label: "Assignments", icon: FaClipboardList, path: "/dashboard/assignments" },
   { id: "quizzes", label: "Quizzes", icon: FaKeyboard, path: "/dashboard/quizzes" },
   { id: "certificates", label: "Certificates", icon: FaTrophy, path: "/dashboard/certificates" },
   { id: "achievements", label: "Achievements", icon: FaMedal, path: "/dashboard/achievements" },
   { id: "notes", label: "Notes", icon: FaBookmark, path: "/dashboard/notes" },
-  { id: "bookmarks", label: "Bookmarks", icon: FaBookmark, path: "/dashboard/bookmarks" },
   { id: "messages", label: "Messages", icon: FaCommentDots, path: "/dashboard/messages" },
   { id: "live-classes", label: "Live Classes", icon: FaUsers, path: "/dashboard/live-classes" },
-  { id: "community", label: "Community", icon: FaUsers, path: "/students" },
-  { id: "discussion-forums", label: "Discussion Forums", icon: FaCommentDots, path: "/dashboard/forums" },
   { id: "leaderboard", label: "Leaderboard", icon: FaTrophy, path: "/dashboard/leaderboard" },
-  { id: "calendar", label: "Calendar", icon: FaCalendarAlt, path: "/dashboard/calendar" },
-  { id: "downloads", label: "Downloads", icon: FaFolderOpen, path: "/dashboard/downloads" },
   { id: "interview-prep", label: "Interview Prep", icon: FaQuestionCircle, path: "/dashboard/interview-prep" },
   { id: "jobs-internships", label: "Jobs & Internships", icon: FaUser, path: "/dashboard/jobs" },
   { id: "resume-builder", label: "Resume Builder", icon: FaClipboardList, path: "/dashboard/resume" },
   { id: "ai-assistant", label: "AI Assistant", icon: FaBrain, path: "/dashboard/ai-assistant" },
   { id: "ai-study-planner", label: "AI Study Planner", icon: FaCalendarAlt, path: "/dashboard/planner" },
   { id: "analytics", label: "Analytics", icon: FaChartLine, path: "/dashboard/analytics" },
-  { id: "notifications", label: "Notifications", icon: FaBell, path: "/dashboard/notifications" },
   { id: "support", label: "Support", icon: FaQuestionCircle, path: "/dashboard/support" },
   { id: "subscription-billing", label: "Subscription & Billing", icon: FaCog, path: "/dashboard/billing" },
   { id: "settings", label: "Settings", icon: FaCog, path: "/dashboard/settings" },
 ];
 
+
 export default function StudentSidebar() {
   const { user } = useSelector((state) => state.profile);
+  const sidebarLinks = baseSidebarLinks.filter((link) => !(link.id === 'explore-courses' && user?.accountType === 'Student'));
   const [isOpen, setIsOpen] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null);
 
@@ -140,7 +135,7 @@ export default function StudentSidebar() {
             </div>
 
             <Link to="/" className="relative z-10 flex items-center">
-              <LogoMark />
+              <Logo />
             </Link>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Student Portal</p>
           </div>

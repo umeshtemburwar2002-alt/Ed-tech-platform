@@ -13,6 +13,7 @@ import { ACCOUNT_TYPE } from "./utils/constants";
 import RoleRoute from "./components/core/auth/RoleRoute";
 import AppSkeleton from "./components/core/Loaders/AppSkeleton";
 import { ThemeProvider } from "./context/ThemeContext";
+import { NotificationProvider } from "./context/NotificationContext";
 
 import { courseRoutes } from "./routes/courseRoutes";
 import AdminLayout from "./components/admin/AdminLayout";
@@ -41,19 +42,19 @@ const AdminDashboard = React.lazy(() => import("./pages/admin/Dashboard"));
 const AdminUsers = React.lazy(() => import("./pages/admin/Users"));
 const AdminCourses = React.lazy(() => import("./pages/admin/Courses"));
 const AdminReports = React.lazy(() => import("./pages/admin/Reports"));
-const InstructorEarnings     = React.lazy(() => import("./pages/dashboard/instructor/Earnings"));
-const InstructorAnalytics    = React.lazy(() => import("./pages/dashboard/instructor/Analytics"));
-const InstructorAssignments  = React.lazy(() => import("./pages/dashboard/instructor/Assignments"));
-const InstructorNotifications= React.lazy(() => import("./pages/dashboard/instructor/Notifications"));
-const InstructorReviews      = React.lazy(() => import("./pages/dashboard/instructor/Reviews"));
-const InstructorResources    = React.lazy(() => import("./pages/dashboard/instructor/Resources"));
-const InstructorCoupons      = React.lazy(() => import("./pages/dashboard/instructor/Coupons"));
-const InstructorWebinars     = React.lazy(() => import("./pages/dashboard/instructor/Webinars"));
-const InstructorAIAssistant  = React.lazy(() => import("./pages/dashboard/instructor/AIAssistant"));
+const InstructorEarnings = React.lazy(() => import("./pages/dashboard/instructor/Earnings"));
+const InstructorAnalytics = React.lazy(() => import("./pages/dashboard/instructor/Analytics"));
+const InstructorAssignments = React.lazy(() => import("./pages/dashboard/instructor/Assignments"));
+const InstructorNotifications = React.lazy(() => import("./pages/dashboard/instructor/Notifications"));
+const InstructorReviews = React.lazy(() => import("./pages/dashboard/instructor/Reviews"));
+const InstructorResources = React.lazy(() => import("./pages/dashboard/instructor/Resources"));
+const InstructorCoupons = React.lazy(() => import("./pages/dashboard/instructor/Coupons"));
+const InstructorWebinars = React.lazy(() => import("./pages/dashboard/instructor/Webinars"));
+const InstructorAIAssistant = React.lazy(() => import("./pages/dashboard/instructor/AIAssistant"));
 const InstructorStudentProgress = React.lazy(() => import("./pages/dashboard/instructor/StudentProgress"));
-const InstructorAffiliate    = React.lazy(() => import("./pages/dashboard/instructor/Affiliate"));
+const InstructorAffiliate = React.lazy(() => import("./pages/dashboard/instructor/Affiliate"));
 const InstructorVerification = React.lazy(() => import("./pages/dashboard/instructor/Verification"));
-const InstructorAttendance   = React.lazy(() => import("./pages/dashboard/instructor/Attendance"));
+const InstructorAttendance = React.lazy(() => import("./pages/dashboard/instructor/Attendance"));
 const InstructorCertificates = React.lazy(() => import("./pages/dashboard/instructor/Certificates"));
 const InstructorSupport = React.lazy(() => import("./pages/dashboard/instructor/Support"));
 const InstructorInfo = React.lazy(() => import("./pages/dashboard/instructor/InstructorInfo"));
@@ -68,8 +69,6 @@ const StudentAssignments = React.lazy(() => import("./pages/student-dashboard/As
 const StudentAnalytics = React.lazy(() => import("./pages/student-dashboard/Analytics"));
 const StudentAIAssistant = React.lazy(() => import("./pages/student-dashboard/AIAssistant"));
 const StudentLeaderboard = React.lazy(() => import("./pages/student-dashboard/Leaderboard"));
-const StudentPlanner = React.lazy(() => import("./pages/student-dashboard/Dashboard"));
-const StudentBookmarks = React.lazy(() => import("./pages/student-dashboard/Dashboard"));
 const StudentStudyGroups = React.lazy(() => import("./pages/student-dashboard/Dashboard"));
 const StudentResources = React.lazy(() => import("./pages/student-dashboard/Dashboard"));
 const StudentReferral = React.lazy(() => import("./pages/student-dashboard/Dashboard"));
@@ -134,6 +133,7 @@ const EditCourse = React.lazy(() => import("./components/core/Dashboard/EditCour
 const Catalog = React.lazy(() => import("./pages/Catalog"));
 const CourseDetails = React.lazy(() => import("./pages/CourseDetails"));
 const ViewCourse = React.lazy(() => import("./pages/ViewCourse"));
+const CourseLearningPage = React.lazy(() => import("./pages/CourseLearningPage"));
 const VideoDetails = React.lazy(() => import("./components/core/ViewCourse/VideoDetails"));
 const InstructorDashboard = React.lazy(() => import("./pages/InstructorDashboard"));
 const Error = React.lazy(() => import("./pages/Error"));
@@ -180,205 +180,210 @@ function App() {
   const dispatch = useDispatch();
   const location = useLocation();
   const { user } = useSelector((state) => state.profile);
-  
+
   useEffect(() => {
     const unsubscribe = subscribeSupabaseAuthToStore(dispatch);
     return unsubscribe;
   }, [dispatch]);
-  
+
   return (
-  <ThemeProvider>
-  <div className="w-screen min-h-screen bg-richblack-900 flex flex-col font-inter relative transition-colors duration-300 dark:bg-richblack-900">
-    {!location.pathname.startsWith("/dashboard") && 
-     !location.pathname.startsWith("/instructor") && 
-     !location.pathname.startsWith("/view-course") && 
-     !location.pathname.startsWith("/admin") && <Navbar />}
+    <ThemeProvider>
+      <NotificationProvider>
+        <div className="w-screen min-h-screen bg-richblack-900 flex flex-col font-inter relative transition-colors duration-300 dark:bg-richblack-900">
+          {!location.pathname.startsWith("/dashboard") &&
+            !location.pathname.startsWith("/instructor") &&
+            !location.pathname.startsWith("/view-course") &&
+            !location.pathname.startsWith("/learn") &&
+            !location.pathname.startsWith("/admin") && <Navbar />}
 
-    <div className="content-wrapper relative z-0">
-      <div className="relative z-10">
-  <Suspense fallback={<AppSkeleton />}> 
-  <Routes>
-  {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/offers" element={<Offers />} />
-        <Route path="/all-courses-offer" element={<AllCoursesOffer />} />
-        <Route path="/start-learning-free" element={<StartLearningFree />} />
-        
-        <Route path="catalog/:catalogName" element={<Catalog />} />
-        <Route path="students" element={<Students />} />
-        <Route path="explore-courses" element={<ExploreCourses />} />
-        <Route path="course-catalog" element={<ExploreCourses />} />
-        
-        <Route path="course-purchase" element={<CoursePurchase />} />
-        
-        {/* Course Detail Route (Public or Private) */}
-        <Route path="/courses/:courseId" element={<CourseDetail />} />
-        
-        <Route path="cart" element={<Cart />} />
-        
-        {/* Admin */}
-        <Route path="/admin/login" element={<AdminOpenRoute><AdminLogin /></AdminOpenRoute>} />
-        <Route path="/admin" element={<PrivateRoute><RoleRoute allow={["Admin"]}><AdminLayout /></RoleRoute></PrivateRoute>}>
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="courses" element={<AdminCourses />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="enrollments" element={<AdminEnrollmentDashboard userId={user?.id} userRole="admin" />} />
-        </Route>
-        <Route path="/403" element={<Forbidden403 />} />
-        
-        {/* Company Pages */}
-        <Route path="/careers" element={<Careers />} />
-        
-        {/* Resources Pages */}
-        <Route path="/resources/articles" element={<Articles />} />
-        <Route path="/resources/blog" element={<Blog />} />
-        
-        {/* Support Pages */}
-        <Route path="/support/help-center" element={<HelpCenter />} />
-        
-        {/* Subject Pages */}
-        <Route path="/subjects/ai" element={<AI />} />
-        
-        {/* Language Pages */}
-        <Route path="/languages/python" element={<Python />} />
-        
-        {/* Legal Pages */}
-        <Route path="/legal/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/legal/cookie-policy" element={<CookiePolicy />} />
-        <Route path="/legal/terms-of-service" element={<TermsOfService />} />
-        
-        {/* Student Dashboard Routes */}
-        <Route element={<PrivateRoute><RoleRoute allow={["Student"]}><StudentDashboardLayout /></RoleRoute></PrivateRoute>}>
-          <Route path="dashboard/my-profile" element={<StudentDashboardHome />} />
-          <Route path="dashboard/enrolled-courses" element={<StudentCourses />} />
-          <Route path="dashboard/learning-path" element={<StudentLearningPath />} />
-          <Route path="dashboard/wishlist" element={<Wishlist />} />
-          <Route path="dashboard/quizzes" element={<StudentQuiz />} />
-          <Route path="dashboard/assignments" element={<StudentAssignments />} />
-          <Route path="dashboard/analytics" element={<StudentAnalytics />} />
-          <Route path="dashboard/ai-assistant" element={<StudentAIAssistant />} />
-          <Route path="dashboard/planner" element={<StudentPlanner />} />
-          <Route path="dashboard/achievements" element={<StudentDashboardHome />} />
-          <Route path="dashboard/notes" element={<StudentDashboardHome />} />
-          <Route path="dashboard/bookmarks" element={<StudentBookmarks />} />
-          <Route path="dashboard/live-classes" element={<LiveClasses />} />
-          <Route path="dashboard/forums" element={<StudentDashboardHome />} />
-          <Route path="dashboard/leaderboard" element={<StudentLeaderboard />} />
-          <Route path="dashboard/calendar" element={<StudentDashboardHome />} />
-          <Route path="dashboard/downloads" element={<StudentDashboardHome />} />
-          <Route path="dashboard/interview-prep" element={<StudentDashboardHome />} />
-          <Route path="dashboard/jobs" element={<StudentDashboardHome />} />
-          <Route path="dashboard/resume" element={<StudentDashboardHome />} />
-          <Route path="dashboard/study-groups" element={<StudentStudyGroups />} />
-          <Route path="dashboard/resources" element={<StudentResources />} />
-          <Route path="dashboard/referral" element={<StudentReferral />} />
-          <Route path="dashboard/messages" element={<StudentMessages />} />
-          <Route path="dashboard/feedback" element={<StudentFeedback />} />
-          <Route path="dashboard/notifications" element={<StudentNotifications />} />
-          <Route path="dashboard/certificates" element={<StudentCertificates />} />
-          <Route path="dashboard/support" element={<StudentSupportPage />} />
-          <Route path="dashboard/my-tickets" element={<MyTickets />} />
-          <Route path="dashboard/billing" element={<StudentDashboardHome />} />
-          <Route path="dashboard/purchase-history" element={<MyPurchases />} />
-          <Route path="dashboard/settings" element={<Settings />} />
-          <Route path="dashboard/cart" element={<DashboardCart />} />
-        </Route>
+          <div className="content-wrapper relative z-0">
+            <div className="relative z-10">
+              <Suspense fallback={<AppSkeleton />}>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/home" element={<Home />} />
+                  <Route path="/offers" element={<Offers />} />
+                  <Route path="/all-courses-offer" element={<AllCoursesOffer />} />
+                  <Route path="/start-learning-free" element={<StartLearningFree />} />
 
-        {/* Instructor Onboarding */}
-        <Route path="/instructor/setup" element={<PrivateRoute><RoleRoute allow={["Instructor"]}><InstructorOnboarding /></RoleRoute></PrivateRoute>} />
-        
-        {/* Instructor Dashboard Routes */}
-        <Route element={<PrivateRoute><RoleRoute allow={["Instructor"]}><InstructorDashboardLayout /></RoleRoute></PrivateRoute>}>
-          <Route path="dashboard/instructor" element={<InstructorDashboard />} />
-          <Route path="dashboard/instructor/info" element={<InstructorInfo />} />
-          <Route path="dashboard/instructor/my-courses" element={<MyCourses />} />
-          <Route path="dashboard/instructor/add-course" element={<AddCourse />} />
-          <Route path="dashboard/instructor/course-builder" element={<InstructorDashboard />} />
-          <Route path="dashboard/instructor/quizzes" element={<Quiz />} />
-          <Route path="dashboard/instructor/notes" element={<Notes />} />
-          <Route path="dashboard/instructor/live-classes" element={<LiveClasses />} />
-          <Route path="dashboard/instructor/profile" element={<MyProfile />} />
-          <Route path="dashboard/instructor/settings" element={<Settings />} />
-          <Route path="dashboard/instructor/marketing" element={<Marketing />} />
-          <Route path="dashboard/instructor/students" element={<InstructorStudents />} />
-          <Route path="dashboard/instructor/messages" element={<InstructorMessages />} />
-          <Route path="dashboard/instructor/feedback" element={<Feedback />} />
-          <Route path="dashboard/instructor/discussions" element={<InstructorDashboard />} />
-          <Route path="dashboard/instructor/payouts" element={<InstructorEarnings />} />
-          <Route path="dashboard/instructor/reports" element={<InstructorAnalytics />} />
-          <Route path="dashboard/instructor/downloads" element={<InstructorResources />} />
-          <Route path="dashboard/instructor/jobs" element={<InstructorDashboard />} />
-          <Route path="dashboard/instructor/announcements" element={<InstructorNotifications />} />
-          <Route path="dashboard/instructor/calendar" element={<InstructorDashboard />} />
-          <Route path="dashboard/instructor/integrations" element={<InstructorDashboard />} />
-          <Route path="dashboard/instructor/billing" element={<InstructorDashboard />} />
-          {/* New Feature Routes */}
-          <Route path="dashboard/instructor/earnings"          element={<InstructorEarnings />} />
-          <Route path="dashboard/instructor/analytics"         element={<InstructorAnalytics />} />
-          <Route path="dashboard/instructor/assignments"        element={<InstructorAssignments />} />
-          <Route path="dashboard/instructor/notifications"      element={<InstructorNotifications />} />
-          <Route path="dashboard/instructor/reviews"            element={<InstructorReviews />} />
-          <Route path="dashboard/instructor/resources"          element={<InstructorResources />} />
-          <Route path="dashboard/instructor/coupons"            element={<InstructorCoupons />} />
-          <Route path="dashboard/instructor/webinars"           element={<InstructorWebinars />} />
-          <Route path="dashboard/instructor/ai-assistant"       element={<InstructorAIAssistant />} />
-          <Route path="dashboard/instructor/student-progress"   element={<InstructorStudentProgress />} />
-          <Route path="dashboard/instructor/affiliate"          element={<InstructorAffiliate />} />
-          <Route path="dashboard/instructor/verification"       element={<InstructorVerification />} />
-          <Route path="dashboard/instructor/attendance"         element={<InstructorAttendance />} />
-          <Route path="dashboard/instructor/certificates"       element={<InstructorCertificates />} />
-          <Route path="dashboard/instructor/support"       element={<InstructorSupport />} />
-          <Route path="dashboard/instructor/enrollments"   element={<AdminEnrollmentDashboard userId={user?.id} userRole="instructor" />} />
-        </Route>
-      
-      {/* Auth Routes */}
-      <Route path="login" element={<OpenRoute><Login /></OpenRoute>} />
-      <Route path="signup" element={<OpenRoute><Signup /></OpenRoute>} />
-      <Route path="register/student" element={<OpenRoute><StudentSignup /></OpenRoute>} />
-      <Route path="register/instructor" element={<OpenRoute><InstructorSignup /></OpenRoute>} />
-      <Route path="signup-offer" element={<OpenRoute><SignupOffer /></OpenRoute>} />
-      <Route path="forgot-password" element={<OpenRoute><ForgotPassword /></OpenRoute>} />
-      <Route path="phone-verification" element={<OpenRoute><PhoneVerification /></OpenRoute>} />
-      <Route path="verify-email" element={<VerifyEmail />} />
-      <Route path="update-password" element={<UpdatePassword />} />
+                  <Route path="catalog/:catalogName" element={<Catalog />} />
+                  <Route path="students" element={<Students />} />
+                  <Route path="explore-courses" element={<ExploreCourses />} />
+                  <Route path="course-catalog" element={<ExploreCourses />} />
 
+                  <Route path="course-purchase" element={<CoursePurchase />} />
 
+                  {/* Course Detail Route (Public or Private) */}
+                  <Route path="/courses/:courseId" element={<CourseDetail />} />
+
+                  <Route path="cart" element={<Cart />} />
+
+                  {/* Admin */}
+                  <Route path="/admin/login" element={<AdminOpenRoute><AdminLogin /></AdminOpenRoute>} />
+                  <Route path="/admin" element={<PrivateRoute><RoleRoute allow={["Admin"]}><AdminLayout /></RoleRoute></PrivateRoute>}>
+                    <Route path="dashboard" element={<AdminDashboard />} />
+                    <Route path="users" element={<AdminUsers />} />
+                    <Route path="courses" element={<AdminCourses />} />
+                    <Route path="reports" element={<AdminReports />} />
+                    <Route path="enrollments" element={<AdminEnrollmentDashboard userId={user?.id} userRole="admin" />} />
+                  </Route>
+                  <Route path="/403" element={<Forbidden403 />} />
+
+                  {/* Company Pages */}
+                  <Route path="/careers" element={<Careers />} />
+
+                  {/* Resources Pages */}
+                  <Route path="/resources/articles" element={<Articles />} />
+                  <Route path="/resources/blog" element={<Blog />} />
+
+                  {/* Support Pages */}
+                  <Route path="/support/help-center" element={<HelpCenter />} />
+
+                  {/* Subject Pages */}
+                  <Route path="/subjects/ai" element={<AI />} />
+
+                  {/* Language Pages */}
+                  <Route path="/languages/python" element={<Python />} />
+
+                  {/* Legal Pages */}
+                  <Route path="/legal/privacy-policy" element={<PrivacyPolicy />} />
+                  <Route path="/legal/cookie-policy" element={<CookiePolicy />} />
+                  <Route path="/legal/terms-of-service" element={<TermsOfService />} />
+
+                  {/* Student Dashboard Routes */}
+                  <Route element={<PrivateRoute><RoleRoute allow={["Student"]}><StudentDashboardLayout /></RoleRoute></PrivateRoute>}>
+                    <Route path="dashboard/my-profile" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/enrolled-courses" element={<StudentCourses />} />
+                    <Route path="dashboard/learning-path" element={<StudentLearningPath />} />
+                    <Route path="dashboard/wishlist" element={<Wishlist />} />
+                    <Route path="dashboard/quizzes" element={<StudentQuiz />} />
+                    <Route path="dashboard/assignments" element={<StudentAssignments />} />
+                    <Route path="dashboard/analytics" element={<StudentAnalytics />} />
+                    <Route path="dashboard/ai-assistant" element={<StudentAIAssistant />} />
+                    <Route path="dashboard/achievements" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/notes" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/live-classes" element={<LiveClasses />} />
+                    <Route path="dashboard/forums" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/leaderboard" element={<StudentLeaderboard />} />
+                    <Route path="dashboard/downloads" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/interview-prep" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/jobs" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/resume" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/study-groups" element={<StudentStudyGroups />} />
+                    <Route path="dashboard/resources" element={<StudentResources />} />
+                    <Route path="dashboard/referral" element={<StudentReferral />} />
+                    <Route path="dashboard/messages" element={<StudentMessages />} />
+                    <Route path="dashboard/feedback" element={<StudentFeedback />} />
+                    <Route path="dashboard/notifications" element={<StudentNotifications />} />
+                    <Route path="dashboard/certificates" element={<StudentCertificates />} />
+                    <Route path="dashboard/support" element={<StudentSupportPage />} />
+                    <Route path="dashboard/my-tickets" element={<MyTickets />} />
+                    <Route path="dashboard/billing" element={<StudentDashboardHome />} />
+                    <Route path="dashboard/purchase-history" element={<MyPurchases />} />
+                    <Route path="dashboard/settings" element={<Settings />} />
+                    <Route path="dashboard/cart" element={<DashboardCart />} />
+                  </Route>
+
+                  {/* Instructor Onboarding */}
+                  <Route path="/instructor/setup" element={<PrivateRoute><RoleRoute allow={["Instructor"]}><InstructorOnboarding /></RoleRoute></PrivateRoute>} />
+
+                  {/* Instructor Dashboard Routes */}
+                  <Route element={<PrivateRoute><RoleRoute allow={["Instructor"]}><InstructorDashboardLayout /></RoleRoute></PrivateRoute>}>
+                    <Route path="dashboard/instructor" element={<InstructorDashboard />} />
+                    <Route path="dashboard/instructor/info" element={<InstructorInfo />} />
+                    <Route path="dashboard/instructor/my-courses" element={<MyCourses />} />
+                    <Route path="dashboard/instructor/add-course" element={<AddCourse />} />
+                    <Route path="dashboard/instructor/course-builder" element={<InstructorDashboard />} />
+                    <Route path="dashboard/instructor/quizzes" element={<Quiz />} />
+                    <Route path="dashboard/instructor/notes" element={<Notes />} />
+                    <Route path="dashboard/instructor/live-classes" element={<LiveClasses />} />
+                    <Route path="dashboard/instructor/profile" element={<MyProfile />} />
+                    <Route path="dashboard/instructor/settings" element={<Settings />} />
+                    <Route path="dashboard/instructor/marketing" element={<Marketing />} />
+                    <Route path="dashboard/instructor/students" element={<InstructorStudents />} />
+                    <Route path="dashboard/instructor/messages" element={<InstructorMessages />} />
+                    <Route path="dashboard/instructor/feedback" element={<Feedback />} />
+                    <Route path="dashboard/instructor/discussions" element={<InstructorDashboard />} />
+                    <Route path="dashboard/instructor/payouts" element={<InstructorEarnings />} />
+                    <Route path="dashboard/instructor/reports" element={<InstructorAnalytics />} />
+                    <Route path="dashboard/instructor/downloads" element={<InstructorResources />} />
+                    <Route path="dashboard/instructor/jobs" element={<InstructorDashboard />} />
+                    <Route path="dashboard/instructor/announcements" element={<InstructorNotifications />} />
+                    <Route path="dashboard/instructor/calendar" element={<InstructorDashboard />} />
+                    <Route path="dashboard/instructor/integrations" element={<InstructorDashboard />} />
+                    <Route path="dashboard/instructor/billing" element={<InstructorDashboard />} />
+                    {/* New Feature Routes */}
+                    <Route path="dashboard/instructor/earnings" element={<InstructorEarnings />} />
+                    <Route path="dashboard/instructor/analytics" element={<InstructorAnalytics />} />
+                    <Route path="dashboard/instructor/assignments" element={<InstructorAssignments />} />
+                    <Route path="dashboard/instructor/notifications" element={<InstructorNotifications />} />
+                    <Route path="dashboard/instructor/reviews" element={<InstructorReviews />} />
+                    <Route path="dashboard/instructor/resources" element={<InstructorResources />} />
+                    <Route path="dashboard/instructor/coupons" element={<InstructorCoupons />} />
+                    <Route path="dashboard/instructor/webinars" element={<InstructorWebinars />} />
+                    <Route path="dashboard/instructor/ai-assistant" element={<InstructorAIAssistant />} />
+                    <Route path="dashboard/instructor/student-progress" element={<InstructorStudentProgress />} />
+                    <Route path="dashboard/instructor/affiliate" element={<InstructorAffiliate />} />
+                    <Route path="dashboard/instructor/verification" element={<InstructorVerification />} />
+                    <Route path="dashboard/instructor/attendance" element={<InstructorAttendance />} />
+                    <Route path="dashboard/instructor/certificates" element={<InstructorCertificates />} />
+                    <Route path="dashboard/instructor/support" element={<InstructorSupport />} />
+                    <Route path="dashboard/instructor/edit-course/:courseId" element={<EditCourse />} />
+                    <Route path="dashboard/instructor/enrollments" element={<AdminEnrollmentDashboard userId={user?.id} userRole="instructor" />} />
+                  </Route>
+
+                  {/* Auth Routes */}
+                  <Route path="login" element={<OpenRoute><Login /></OpenRoute>} />
+                  <Route path="signup" element={<OpenRoute><Signup /></OpenRoute>} />
+                  <Route path="register/student" element={<OpenRoute><StudentSignup /></OpenRoute>} />
+                  <Route path="register/instructor" element={<OpenRoute><InstructorSignup /></OpenRoute>} />
+                  <Route path="signup-offer" element={<OpenRoute><SignupOffer /></OpenRoute>} />
+                  <Route path="forgot-password" element={<OpenRoute><ForgotPassword /></OpenRoute>} />
+                  <Route path="phone-verification" element={<OpenRoute><PhoneVerification /></OpenRoute>} />
+                  <Route path="verify-email" element={<VerifyEmail />} />
+                  <Route path="update-password" element={<UpdatePassword />} />
 
 
-      {/* Static Routes */}
-      <Route path="/about" element={<About />} />
-      <Route path="/contact" element={<Contact />} />
-
-      <Route path="/course/:courseId" element={<CourseDetail />} />
-
-    {/* Course Viewing Routes */}
-    <Route
-      path="view-course/:courseId"
-      element={<PrivateRoute><ViewCourse /></PrivateRoute>}
-    />
-    <Route
-      path="learn/:courseId"
-      element={<PrivateRoute><ViewCourse /></PrivateRoute>}
-    />
-
-    {/* Course Routes - Protected by Authentication */}
-    {courseRoutes.map((route, index) => (
-      <Route key={index} path={route.path} element={route.element} />
-    ))}
-
-    <Route path="*" element={<Error />} />
 
 
-  </Routes>
-    </Suspense>
-      
-      </div>
-    </div>
-  {/* Removed black overlay above footer */}
-  </div>
-  </ThemeProvider>
+                  {/* Static Routes */}
+                  <Route path="/about" element={<About />} />
+                  <Route path="/contact" element={<Contact />} />
+
+                  <Route path="/course/:courseId" element={<CourseDetail />} />
+
+                  {/* Course Viewing Routes — All point to Supabase-native learning page */}
+                  <Route
+                    path="view-course/:courseId"
+                    element={<PrivateRoute><CourseLearningPage /></PrivateRoute>}
+                  />
+                  <Route
+                    path="learn/:courseId"
+                    element={<PrivateRoute><CourseLearningPage /></PrivateRoute>}
+                  />
+                  <Route
+                    path="learn-course/:courseId"
+                    element={<PrivateRoute><CourseLearningPage /></PrivateRoute>}
+                  />
+
+                  {/* Course Routes - Protected by Authentication */}
+                  {courseRoutes.map((route, index) => (
+                    <Route key={index} path={route.path} element={route.element} />
+                  ))}
+
+                  <Route path="*" element={<Error />} />
+
+
+                </Routes>
+              </Suspense>
+
+            </div>
+          </div>
+          {/* Removed black overlay above footer */}
+        </div>
+      </NotificationProvider>
+    </ThemeProvider>
   );
 }
 

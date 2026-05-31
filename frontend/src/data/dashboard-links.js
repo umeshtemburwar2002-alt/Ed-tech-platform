@@ -34,14 +34,6 @@ export const sidebarLinks = [
     icon: "VscBook",
     description: "Access all enrolled courses with progress tracking and continue learning"
   },
-  {
-    id: 5,
-    name: "Study Planner",
-    path: "/dashboard/study-planner",
-    type: ACCOUNT_TYPE.STUDENT,
-    icon: "VscCalendar",
-    description: "Plan your study schedule with smart time management and goal setting"
-  },
   
   // Core Student Features
   {

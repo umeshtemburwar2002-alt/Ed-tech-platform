@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { motion } from 'framer-motion';
 import { 
   Star, Users, Clock, Play, Heart, Share2, CheckCircle, 
@@ -11,69 +11,79 @@ import { supabase } from '../config/supabaseClient';
 import { toast } from 'react-hot-toast';
 import { FaSpinner } from 'react-icons/fa';
 import PaymentModalSecure from '../components/PaymentModalSecure';
+import { extractYouTubeVideoId } from '../utils/youtubeUtils';
+import { addToWishlist, removeFromWishlist } from '../services/operations/wishlistAPI';
+import { addToCart } from '../slices/cartSlice';
 
 const bgPattern = {
   backgroundImage: `url("data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%239C92AC\" fill-opacity=\"0.05\"%3E%3Cpath d=\"M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
 };
 
-function CourseVideoPlayer({ courseData, isEnrolled }) {
-  const [isPlaying, setIsPlaying] = useState(false);
+function CourseVideoPlayer({ courseData, isEnrolled, navigate, handleEnrollment }) {
   const isFree = courseData.is_free || Number(courseData.price) === 0;
-  const videoId = courseData.preview_video_id || courseData.youtube_video_id;
-  const thumbnail = courseData.thumbnail || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
+
+  // Priority: explicit youtube_video_id → derive from preview_video_url
+  const videoId =
+    courseData.youtube_video_id ||
+    extractYouTubeVideoId(courseData.preview_video_url || '') ||
+    null;
+
+  // Thumbnail priority: youtube > custom > uploaded > static
+  const thumbnail =
+    (videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null) ||
+    courseData.youtube_thumbnail_url ||
+    courseData.final_thumbnail_url ||
+    courseData.thumbnail_url ||
+    courseData.thumbnail ||
+    null;
 
   const canWatch = isFree || isEnrolled;
 
-  if (!videoId) {
-    return (
-      <div className="relative aspect-video w-full bg-[#111625] overflow-hidden">
-        <img src={thumbnail} alt={courseData.course_name} className="w-full h-full object-cover" />
-      </div>
-    );
-  }
+  // Handler for img error — fallback from maxresdefault to hqdefault
+  const handleThumbError = (e) => {
+    if (e.target.src.includes('maxresdefault')) {
+      e.target.src = e.target.src.replace('maxresdefault', 'hqdefault');
+    }
+  };
 
-  if (isPlaying && canWatch) {
-    return (
-      <div className="relative aspect-video w-full bg-black overflow-hidden">
-        <iframe
-          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&modestbranding=1&rel=0`}
-          title="Course Preview Video"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          className="w-full h-full animate-fadeIn"
-        ></iframe>
-      </div>
-    );
-  }
+  const handleClick = () => {
+    if (isEnrolled) {
+      navigate(`/learn/${courseData.id}`);
+    } else {
+      handleEnrollment();
+    }
+  };
 
   return (
-    <div className="relative aspect-video w-full bg-[#111625] overflow-hidden group">
-      <img src={thumbnail} alt={courseData.course_name} className="w-full h-full object-cover" />
+    <div 
+      onClick={handleClick}
+      className="relative aspect-video w-full bg-[#111625] overflow-hidden group cursor-pointer border border-richblack-700"
+    >
+      {thumbnail
+        ? <img src={thumbnail} alt={courseData.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={handleThumbError} />
+        : <div className="w-full h-full bg-gradient-to-br from-purple-900/40 to-indigo-900/40" />
+      }
       
       {canWatch ? (
-        // Playable Preview Overlay
-        <button
-          onClick={() => setIsPlaying(true)}
-          className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 hover:bg-black/55 transition-all duration-300"
-        >
+        // Playable Preview Overlay - Re-routes to Classroom
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 hover:bg-black/55 transition-all duration-300">
           <div className="w-16 h-16 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-2xl">
             <Play className="h-6 w-6 text-white ml-1 fill-current" />
           </div>
           <span className="absolute bottom-4 left-4 text-[10px] font-black uppercase tracking-wider text-white bg-purple-600/80 border border-purple-500/30 px-3 py-1 rounded-full shadow-lg">
-            Free Preview
+            {isEnrolled ? "Go to Classroom" : "Free Course"}
           </span>
-        </button>
+        </div>
       ) : (
         // Locked Preview Overlay
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-[3px] p-4 text-center">
-          <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-3 shadow-lg">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-[3px] p-4 text-center transition-all duration-300 hover:bg-black/80">
+          <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform">
             <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
           <span className="text-sm font-black text-white tracking-widest uppercase">Enroll to Watch</span>
-          <span className="text-[10px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">This video is only available for enrolled students.</span>
+          <span className="text-[10px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">This video is only available inside the classroom.</span>
         </div>
       )}
     </div>
@@ -84,10 +94,12 @@ const CourseDetail = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
   
   // Redux Token & Profile Auth Selector
   const { user } = useSelector((state) => state.profile);
   const { token } = useSelector((state) => state.auth);
+  const { wishlist } = useSelector((state) => state.wishlist);
   
   const [courseData, setCourseData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,6 +109,41 @@ const CourseDetail = () => {
 
   const searchParams = new URLSearchParams(location.search);
   const shouldAutoEnroll = searchParams.get("enroll") === "true";
+
+  const isWishlisted = wishlist?.some((item) => item.id === courseData?.id);
+
+  const handleWishlist = () => {
+    if (!token) {
+      toast.error("Please login to add to wishlist");
+      navigate('/login');
+      return;
+    }
+    if (isWishlisted) {
+      dispatch(removeFromWishlist(courseData.id, token));
+    } else {
+      dispatch(addToWishlist(courseData.id, courseData, token));
+    }
+  };
+
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: courseData?.title,
+        text: courseData?.description,
+        url: url,
+      }).catch((err) => console.error("Error sharing", err));
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard!");
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (courseData) {
+      dispatch(addToCart(courseData));
+    }
+  };
 
   useEffect(() => {
     const fetchCourseDetails = async () => {
@@ -122,28 +169,39 @@ const CourseDetail = () => {
         const { data: course, error: courseError } = await query.single();
         if (courseError || !course) throw courseError || new Error("Course not found");
 
-        // Fetch curriculum sections from Supabase using resolved course UUID
-        const { data: sectionsData, error: secError } = await supabase
-          .from("course_sections")
-          .select("*")
+        // Fetch curriculum sections — use 'sections' table (new schema)
+        const { data: sectionsData } = await supabase
+          .from("sections")
+          .select("id, section_name, order_index")
           .eq("course_id", course.id)
-          .order("position", { ascending: true });
+          .order("order_index", { ascending: true });
 
-        if (secError) throw secError;
-
-        // Fetch lessons from Supabase using resolved course UUID
-        const { data: lessonsData, error: lesError } = await supabase
+        // Fetch lessons — get YouTube columns too
+        const { data: lessonsData } = await supabase
           .from("course_lessons")
-          .select("*")
+          .select("id, title, duration, duration_seconds, section_id, position, lesson_order, youtube_video_id, youtube_video_url, youtube_thumbnail_url, video_url")
           .eq("course_id", course.id)
           .order("position", { ascending: true });
 
-        if (lesError) throw lesError;
+        // Derive first-lesson YouTube thumbnail for course card if not set
+        let firstLessonThumb = null;
+        if (lessonsData?.length > 0) {
+          const firstWithYt = lessonsData.find(
+            (l) => l.youtube_video_id || l.youtube_thumbnail_url ||
+                   extractYouTubeVideoId(l.youtube_video_url || l.video_url || '')
+          );
+          if (firstWithYt) {
+            const vid = firstWithYt.youtube_video_id ||
+              extractYouTubeVideoId(firstWithYt.youtube_video_url || firstWithYt.video_url || '');
+            firstLessonThumb = firstWithYt.youtube_thumbnail_url ||
+              (vid ? `https://img.youtube.com/vi/${vid}/maxresdefault.jpg` : null);
+          }
+        }
 
-        // Map lessons to sections dynamically to resolve blank Course Content issue
+        // Map lessons to sections
         const formattedSections = (sectionsData || []).map(section => ({
           ...section,
-          section_name: section.title,
+          section_name: section.section_name,
           sub_sections: (lessonsData || [])
             .filter(lesson => lesson.section_id === section.id)
             .map(lesson => ({
@@ -152,7 +210,7 @@ const CourseDetail = () => {
             }))
         }));
 
-        // Enrich course data with dynamic values, requirements, and outcomes
+        // Enrich course data
         const enrichedCourse = {
           ...course,
           course_name: course.title,
@@ -164,6 +222,22 @@ const CourseDetail = () => {
             avatar_url: null,
             image: null
           },
+          // Thumbnail: YouTube first, then first-lesson, then stored thumb
+          youtube_thumbnail_url:
+            course.youtube_thumbnail_url ||
+            firstLessonThumb ||
+            null,
+          final_thumbnail_url:
+            course.final_thumbnail_url ||
+            firstLessonThumb ||
+            null,
+          thumbnail:
+            course.youtube_thumbnail_url ||
+            firstLessonThumb ||
+            course.final_thumbnail_url ||
+            course.thumbnail_url ||
+            course.thumbnail ||
+            null,
           what_you_will_learn: Array.isArray(course.what_you_will_learn)
             ? course.what_you_will_learn
             : Array.isArray(course.learning_outcomes)
@@ -187,15 +261,17 @@ const CourseDetail = () => {
         let enrolled = false;
         if (user) {
           const { data: enrollData, error: enrollError } = await supabase
-            .from("enrollments")
-            .select("id")
+            .from("course_enrollments")
+            .select("id, payment_status")
             .eq("course_id", course.id)
             .eq("student_id", user.id)
-            .eq("enrollment_status", "active")
             .maybeSingle();
 
           if (!enrollError && enrollData) {
-            enrolled = true;
+            const status = enrollData.payment_status;
+            if (status === "paid" || status === "Free" || status === "completed") {
+              enrolled = true;
+            }
           }
         }
         setIsEnrolled(enrolled);
@@ -381,7 +457,12 @@ const CourseDetail = () => {
                 className="sticky top-8 bg-[#1A1F36] border border-white/10 rounded-2xl overflow-hidden"
               >
                 <div className="relative overflow-hidden">
-                  <CourseVideoPlayer courseData={courseData} isEnrolled={isEnrolled} />
+                  <CourseVideoPlayer 
+                    courseData={courseData} 
+                    isEnrolled={isEnrolled} 
+                    navigate={navigate} 
+                    handleEnrollment={handleEnrollment} 
+                  />
                 </div>
 
                 <div className="p-6">
@@ -404,18 +485,35 @@ const CourseDetail = () => {
                   </div>
 
                   <button 
-                    onClick={isEnrolled ? () => navigate(`/learn/${courseId}`) : handleEnrollment}
+                    onClick={isEnrolled ? () => navigate(`/learn/${courseData.id || courseId}`) : handleEnrollment}
                     className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl text-white font-bold text-lg hover:opacity-90 transition-opacity mb-4"
                   >
-                    {isEnrolled ? "Go to Classroom" : (courseData.is_free || Number(courseData.price) === 0 ? "Start Learning Free" : "Buy Now")}
+                    {isEnrolled ? "Go To Classroom" : (courseData.is_free || Number(courseData.price) === 0 ? "Start Learning Free" : "Buy Now")}
                   </button>
 
-                  <div className="flex gap-2 mb-6">
-                    <button className="flex-1 py-3 border border-white/10 rounded-xl text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2">
-                      <Heart className="h-5 w-5" />
-                      <span>Wishlist</span>
+                  {!isEnrolled && token && user?.accountType === "Student" && (
+                    <button 
+                      onClick={handleAddToCart}
+                      className="w-full py-4 bg-richblack-800 text-richblack-5 rounded-xl font-bold text-lg mb-4 hover:bg-richblack-700 transition-all border border-richblack-700"
+                    >
+                      Add to Cart
                     </button>
-                    <button className="flex-1 py-3 border border-white/10 rounded-xl text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2">
+                  )}
+
+                  <div className="flex gap-2 mb-6">
+                    {token && user?.accountType === "Student" && (
+                      <button 
+                        onClick={handleWishlist}
+                        className="flex-1 py-3 border border-white/10 rounded-xl text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-pink-500 text-pink-500' : ''}`} />
+                        <span>{isWishlisted ? 'Wishlisted' : 'Wishlist'}</span>
+                      </button>
+                    )}
+                    <button 
+                      onClick={handleShare}
+                      className="flex-1 py-3 border border-white/10 rounded-xl text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                    >
                       <Share2 className="h-5 w-5" />
                       <span>Share</span>
                     </button>

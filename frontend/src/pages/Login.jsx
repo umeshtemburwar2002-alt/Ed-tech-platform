@@ -13,7 +13,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
 import { login } from "../services/operations/authAPI";
-import { OAUTH_ROLE_KEY } from "../services/operations/googleAuthAPI";
+import { OAUTH_ROLE_KEY, signInWithGoogle, signInWithGitHub } from "../services/operations/googleAuthAPI";
 import RoleSelector from "../components/auth/RoleSelector";
 
 // ─── Page-level animation variants ───────────────────────────────────────────
@@ -29,6 +29,7 @@ const Login = () => {
   const [selectedRole, setSelectedRole] = useState(null); // "Student" | "Instructor"
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(null); // "google" | "github" | null
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,6 +63,25 @@ const Login = () => {
       sessionStorage.setItem("intended_redirect", customRedirect);
     }
     dispatch(login(formData.email, formData.password, navigate, selectedRole, customRedirect));
+  };
+
+  const handleOAuth = async (provider) => {
+    try {
+      setOauthLoading(provider);
+      // Store role so OAuth callback knows what dashboard to redirect to
+      sessionStorage.setItem(OAUTH_ROLE_KEY, selectedRole);
+      if (customRedirect) {
+        sessionStorage.setItem("intended_redirect", customRedirect);
+      }
+      if (provider === "google") {
+        await signInWithGoogle();
+      } else if (provider === "github") {
+        await signInWithGitHub();
+      }
+    } catch (err) {
+      console.error(`OAuth login failed:`, err);
+      setOauthLoading(null);
+    }
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -256,6 +276,55 @@ const Login = () => {
                       )}
                     </button>
                   </form>
+
+                  {/* Divider */}
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/10"></div>
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-600 bg-[#000814]">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* OAuth Buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <motion.button
+                      type="button"
+                      onClick={() => handleOAuth("google")}
+                      disabled={oauthLoading !== null}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white font-semibold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {oauthLoading === "google" ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <i className="fab fa-google text-base" />
+                          Google
+                        </>
+                      )}
+                    </motion.button>
+
+                    <motion.button
+                      type="button"
+                      onClick={() => handleOAuth("github")}
+                      disabled={oauthLoading !== null}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white font-semibold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {oauthLoading === "github" ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <i className="fab fa-github text-base" />
+                          GitHub
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
 
                   {/* Footer */}
                   <p className="mt-6 text-center text-slate-500 text-xs">

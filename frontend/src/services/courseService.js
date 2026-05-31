@@ -30,6 +30,10 @@ export async function getInstructorCourses(instructorId) {
         price,
         status,
         thumbnail,
+        thumbnail_url,
+        custom_thumbnail_url,
+        final_thumbnail_url,
+        thumbnail_source,
         tags,
         category_id,
         what_you_will_learn,
@@ -37,12 +41,15 @@ export async function getInstructorCourses(instructorId) {
         created_at,
         updated_at,
         preview_video_url,
-        preview_video_id,
-        preview_video_thumbnail,
-        preview_video_embed_url,
+        youtube_video_url,
+        youtube_video_id,
+        youtube_embed_url,
+        youtube_thumbnail_url,
         video_provider,
         preview_duration,
-        preview_type
+        preview_type,
+        is_free,
+        level
       `)
       .eq("instructor_id", instructorId)
       .order("created_at", { ascending: false });

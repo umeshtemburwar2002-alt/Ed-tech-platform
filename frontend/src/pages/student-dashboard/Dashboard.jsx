@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { BookOpen, Clock, Brain, Award, PlayCircle, Star, MessageSquare, Flame, Trophy, AlertCircle, Calendar, FileText } from 'lucide-react';
 import { StatCard, GlassCard, ProgressBar, Badge } from '../../components/dashboard/Common';
-import { COURSES_DATA } from '../../data/student-dashboard-data';
+import { supabase } from '../../config/supabaseClient';
 
 const DashboardPage = () => {
   const { user } = useSelector((s) => s.profile);
@@ -12,6 +12,66 @@ const DashboardPage = () => {
     (user?.firstName?.trim() || '') ||
     (user?.first_name?.trim() || '') ||
     'Student';
+
+  const [stats, setStats] = useState({
+    activeCourses: 0,
+    hoursStudied: 0,
+    quizzesDone: 0,
+    certificates: 0,
+    assignmentsPending: 0
+  });
+  const [recentCourses, setRecentCourses] = useState([]);
+
+  React.useEffect(() => {
+    if (user?.id) {
+      const fetchDashboardData = async () => {
+        try {
+          const { data: enrollments } = await supabase
+            .from("course_enrollments")
+            .select(`
+              id, enrolled_at, completed, progress, progress_percent,
+              courses (
+                id, title, final_thumbnail_url, youtube_thumbnail_url, thumbnail_url, thumbnail,
+                instructor:instructor_id(first_name, last_name)
+              )
+            `)
+            .eq("student_id", user.id)
+            .order("enrolled_at", { ascending: false });
+
+          if (enrollments) {
+            const activeCoursesCount = enrollments.length;
+            const completedCoursesCount = enrollments.filter(e => e.completed === true).length;
+            
+            const coursesList = [];
+            enrollments.slice(0, 3).forEach(e => {
+              const c = e.courses;
+              if (!c) return;
+              const inst = c.instructor || {};
+              const thumb = c.final_thumbnail_url || c.youtube_thumbnail_url || c.thumbnail_url || c.thumbnail;
+              coursesList.push({
+                id: c.id,
+                title: c.title || 'Course',
+                thumbnail: thumb || 'https://via.placeholder.com/300x200',
+                instructor: `${inst.first_name || ''} ${inst.last_name || ''}`.trim() || 'Instructor',
+                category: 'Course',
+                progress: e.completed ? 100 : (e.progress_percent || e.progress || 0)
+              });
+            });
+
+            setRecentCourses(coursesList);
+            setStats(prev => ({
+              ...prev,
+              activeCourses: activeCoursesCount,
+              certificates: completedCoursesCount // using completed courses as proxy
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching dashboard data:", error);
+        }
+      };
+      fetchDashboardData();
+    }
+  }, [user]);
 
   const h = new Date().getHours();
   const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -107,10 +167,10 @@ const DashboardPage = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={BookOpen} label="Active Courses" value="6" trend="+1 this month" color="indigo" />
-          <StatCard icon={Clock} label="Hours Studied" value="47" trend="+8 this week" color="purple" />
-          <StatCard icon={Brain} label="Quizzes Done" value="12" trend="3 this week" color="blue" />
-          <StatCard icon={Award} label="Certificates" value="2" trend="1 pending" color="emerald" />
+          <StatCard icon={BookOpen} label="Active Courses" value={stats.activeCourses.toString()} trend="Current enrollments" color="indigo" />
+          <StatCard icon={Clock} label="Hours Studied" value={stats.hoursStudied.toString()} trend="This week" color="purple" />
+          <StatCard icon={Brain} label="Quizzes Done" value={stats.quizzesDone.toString()} trend="Overall" color="blue" />
+          <StatCard icon={Award} label="Certificates" value={stats.certificates.toString()} trend="Earned" color="emerald" />
         </div>
 
         {/* Weekly Chart */}
@@ -141,7 +201,7 @@ const DashboardPage = () => {
             <button className="text-xs text-indigo-400 font-bold hover:underline">See All</button>
           </div>
           <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
-            {COURSES_DATA.slice(0, 3).map((course) => (
+            {recentCourses.length > 0 ? recentCourses.map((course) => (
               <GlassCard key={course.id} className="min-w-[300px] flex-shrink-0 !p-0 overflow-hidden group">
                 <div className="h-32 overflow-hidden relative">
                   <img src={course.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -154,10 +214,14 @@ const DashboardPage = () => {
                     <span>PROGRESS</span><span>{course.progress}%</span>
                   </div>
                   <div className="mt-2"><ProgressBar pct={course.progress} /></div>
-                  <button className="w-full mt-4 bg-gradient-to-r from-indigo-600 to-purple-700 py-2 rounded-xl text-xs font-bold transition-all active:scale-95">Continue →</button>
+                  <a href={`/learn/${course.id}`} className="block w-full mt-4 bg-gradient-to-r from-indigo-600 to-purple-700 py-2 rounded-xl text-xs font-bold text-center transition-all active:scale-95 text-white">Go To Classroom →</a>
                 </div>
               </GlassCard>
-            ))}
+            )) : (
+              <div className="text-gray-400 p-4 border border-white/10 rounded-xl w-full text-center">
+                You haven't enrolled in any courses yet.
+              </div>
+            )}
           </div>
         </div>
       </div>

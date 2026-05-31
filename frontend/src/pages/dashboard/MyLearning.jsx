@@ -29,7 +29,8 @@ import {
   FaRocket
 } from 'react-icons/fa';
 import { Card, Button, Badge } from '../../components/ui';
-import { DashboardRealTime, ActivityTracker } from '../../services/operations/dashboardAPI';
+import { supabase } from '../../config/supabaseClient';
+import { ActivityTracker } from '../../services/operations/dashboardAPI';
 import { toast } from 'react-hot-toast';
 
 const MyLearning = () => {
@@ -61,39 +62,52 @@ const MyLearning = () => {
     try {
       setLoading(true);
       
-      // Track page view (silently for new users)
-      try {
-        await ActivityTracker.trackDashboardView(token, 'my_learning');
-      } catch (error) {
-        // Silently handle tracking errors for new users
-        console.log('Activity tracking skipped for new user');
-      }
-      
-      // Get real-time dashboard data
-      const dashboardData = await DashboardRealTime.initialize(token, 'Student');
-      
-      if (dashboardData) {
-        setDashboardStats(dashboardData.realTimeStats);
-        setEnrolledCourses(dashboardData.courseProgress || []);
-      } else {
-        // Clean data for new users
-        setEnrolledCourses([]);
-        setDashboardStats({
-          coursesEnrolled: 0,
-          lessonsCompleted: 0,
-          totalTimeSpent: 0,
-          activeStreak: 0,
-          coursesCompleted: 0
-        });
-      }
-      
+      // Get real data from Supabase
+      const { data: enrollments, error: enrollError } = await supabase
+        .from("course_enrollments")
+        .select(`
+          id, enrolled_at, completed, progress, progress_percent, course_id,
+          courses (
+            id, title, final_thumbnail_url, youtube_thumbnail_url, thumbnail_url, thumbnail,
+            instructor:instructor_id(first_name, last_name)
+          )
+        `)
+        .eq("student_id", user.id);
+
+      if (enrollError) throw enrollError;
+
+      const formattedCourses = (enrollments || []).map(e => {
+        const c = e.courses || {};
+        const inst = c.instructor || {};
+        const thumb = c.final_thumbnail_url || c.youtube_thumbnail_url || c.thumbnail_url || c.thumbnail;
+        const pct = e.progress_percent ?? e.progress ?? 0;
+        return {
+          courseId: c.id,
+          courseName: c.title || 'Unknown Course',
+          thumbnail: thumb || 'https://via.placeholder.com/150',
+          instructor: inst ? `${inst.first_name || ''} ${inst.last_name || ''}`.trim() : 'Instructor',
+          status: e.completed ? 'completed' : (pct > 0 ? 'in_progress' : 'not_started'),
+          category: 'Course',
+          completionPercentage: e.completed ? 100 : pct,
+          timeSpent: 0,
+          lastAccessed: e.enrolled_at,
+          enrolledDate: e.enrolled_at,
+          totalLessons: 0,
+          completedLessons: 0
+        };
+      });
+
+      setEnrolledCourses(formattedCourses);
+      setDashboardStats({
+        coursesEnrolled: formattedCourses.length,
+        coursesCompleted: formattedCourses.filter(c => c.status === 'completed').length,
+        lessonsCompleted: 0,
+        totalTimeSpent: 0,
+        activeStreak: 0
+      });
       setLastUpdated(new Date());
-      
     } catch (error) {
       console.error('Failed to load learning data:', error);
-      // Don't show error toast for new users - just set clean empty state
-      
-      // Set clean empty state for new users
       setEnrolledCourses([]);
       setDashboardStats({
         coursesEnrolled: 0,
@@ -108,20 +122,9 @@ const MyLearning = () => {
   };
 
   const refreshLearningData = async () => {
-    try {
-      setRefreshing(true);
-      const dashboardData = await DashboardRealTime.refresh(token, 'Student');
-      
-      if (dashboardData) {
-        setDashboardStats(dashboardData.realTimeStats);
-        setEnrolledCourses(dashboardData.courseProgress || []);
-        setLastUpdated(new Date());
-      }
-    } catch (error) {
-      console.error('Failed to refresh learning data:', error);
-    } finally {
-      setRefreshing(false);
-    }
+    setRefreshing(true);
+    await loadMyLearningData();
+    setRefreshing(false);
   };
 
   const handleContinueLearning = async (course) => {
@@ -509,34 +512,17 @@ const MyLearning = () => {
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex items-center space-x-2">
-                    {course.status === 'completed' ? (
-                      <>
-                        <Button variant="outline" size="small" className="flex-1">
-                          <FaEye className="mr-2" />
-                          Review
-                        </Button>
-                        <Button variant="success" size="small">
-                          <FaDownload className="mr-2" />
-                          Certificate
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button 
-                          variant="primary" 
-                          size="small" 
-                          className="flex-1"
-                          onClick={() => handleContinueLearning(course)}
-                        >
-                          <FaPlay className="mr-2" />
-                          {course.status === 'not_started' ? 'Start Learning' : 'Continue'}
-                        </Button>
-                        <Button variant="outline" size="small">
-                          <FaBookmark />
-                        </Button>
-                      </>
-                    )}
+                  <div className="flex items-center space-x-2 mt-4">
+                    <Link to={`/learn/${course.courseId}`} className="w-full">
+                      <Button 
+                        variant="primary" 
+                        size="small" 
+                        className="w-full flex items-center justify-center"
+                      >
+                        <FaPlay className="mr-2" />
+                        Go To Classroom
+                      </Button>
+                    </Link>
                   </div>
 
                   {/* Last Accessed */}

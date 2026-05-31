@@ -92,19 +92,41 @@ export default function MyCourses() {
 
   // Normalize courses for display
   const normalizedCourses = useMemo(() => {
-    return courses.map(c => ({
-      ...c,
-      _id:              c.id,
-      title:            c.title || c.course_name || "Untitled Course",
-      thumbnail_url:    c.thumbnail_url || c.thumbnail,
-      category:         c.category,
-      studentsEnrolled: c.enrollments ?? [],
-      price:            c.price,
-      status:           c.status,
-      rating:           c.rating ?? null,
-      level:            c.level ?? null,
-    }));
+    return courses.map(c => {
+      // Resolve best thumbnail (YouTube > uploaded > none)
+      const ytId = c.youtube_video_id || null;
+      const resolvedThumb =
+        (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null) ||
+        c.youtube_thumbnail_url ||
+        c.final_thumbnail_url ||
+        c.custom_thumbnail_url ||
+        c.thumbnail_url ||
+        (c.thumbnail && !c.thumbnail.includes('unsplash') ? c.thumbnail : null) ||
+        null;
+
+      return {
+        ...c,
+        _id:               c.id,
+        title:             c.title || c.course_name || "Untitled Course",
+        thumbnail_url:     resolvedThumb || c.thumbnail_url || c.thumbnail,
+        // explicit youtube fields
+        youtube_video_id:        c.youtube_video_id || null,
+        youtube_thumbnail_url:   resolvedThumb,
+        final_thumbnail_url:     c.final_thumbnail_url || resolvedThumb,
+        category:          c.category,
+        studentsEnrolled:  c.enrollments ?? [],
+        price:             c.price,
+        status:            c.status,
+        rating:            c.rating ?? null,
+        level:             c.level ?? null,
+        // legacy YouTube URL fields
+        preview_video_url: c.preview_video_url ?? null,
+        youtube_url:       c.youtube_url ?? null,
+        youtubeLink:       c.youtubeLink ?? null,
+      };
+    });
   }, [courses]);
+
 
   const filtered = useMemo(() => {
     let list = [...normalizedCourses];
@@ -116,8 +138,10 @@ export default function MyCourses() {
     return list;
   }, [normalizedCourses, query, statusFilter]);
 
-  const handleSaveEdit = (updated) => {
-    setCourses(prev => prev.map(c => c._id === updated._id ? updated : c));
+  // Navigate to full edit page instead of modal
+  const handleEditCourse = (course) => {
+    const courseId = course.id || course._id;
+    navigate(`/dashboard/instructor/edit-course/${courseId}`);
   };
 
   const handleConfirmDelete = async () => {
@@ -126,7 +150,7 @@ export default function MyCourses() {
     if (error) {
       toast.error(`Delete failed: ${error.message}`);
     } else {
-      setCourses(prev => prev.filter(c => c._id !== deleteCourse._id));
+      setCourses(prev => prev.filter(c => c.id !== (deleteCourse.id || deleteCourse._id)));
       toast.success(`"${deleteCourse.title}" deleted`);
     }
     setDeleteLoading(false);
@@ -244,7 +268,7 @@ export default function MyCourses() {
                       key={course._id}
                       course={course}
                       onView={setViewCourse}
-                      onEdit={setEditCourse}
+                      onEdit={handleEditCourse}
                       onDelete={setDeleteCourse}
                     />
                   ))}
@@ -257,13 +281,7 @@ export default function MyCourses() {
 
       <AnimatePresence>
         {viewCourse && <CourseViewModal course={viewCourse} onClose={() => setViewCourse(null)} />}
-        {editCourse && (
-          <CourseEditModal
-            course={editCourse}
-            onClose={() => setEditCourse(null)}
-            onSave={handleSaveEdit}
-          />
-        )}
+        {/* Edit is now a full page — modal removed */}
         {deleteCourse && (
           <DeleteModal
             course={deleteCourse}

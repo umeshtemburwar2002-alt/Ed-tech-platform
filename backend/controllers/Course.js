@@ -370,7 +370,8 @@ exports.enrollFreeCourse = async (req, res) => {
     try {
         const { courseId } = req.params;
         const studentId = req.user.id;
-
+        console.log("[enrollFreeCourse] Received request for courseId:", courseId, "studentId:", studentId); 
+        
         // Resolve courseId from slug if not UUID
         const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(courseId);
         let resolvedCourseId = courseId;
@@ -388,7 +389,7 @@ exports.enrollFreeCourse = async (req, res) => {
 
         // 1. Check if already enrolled
         const { data: existing } = await supabase
-            .from('enrollments')
+            .from('course_enrollments')
             .select('*')
             .eq('course_id', resolvedCourseId)
             .eq('student_id', studentId)
@@ -402,19 +403,46 @@ exports.enrollFreeCourse = async (req, res) => {
             });
         }
 
-        // 2. Insert active free enrollment
+        // 2. Fetch course details (needed for NOT NULL columns)
+        const { data: courseData, error: courseError } = await supabase
+            .from('courses')
+            .select('id, title, instructor_id')
+            .eq('id', resolvedCourseId)
+            .maybeSingle();
+
+        if (courseError || !courseData) {
+            return res.status(404).json({ success: false, message: "Course not found" });
+        }
+
+        // 3. Fetch student profile (needed for NOT NULL columns)
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email, full_name')
+            .eq('id', studentId)
+            .maybeSingle();
+
+        const studentName = profile?.full_name || 
+            `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 
+            req.user.email || 'Student';
+        const studentEmail = profile?.email || req.user.email || '';
+
+        // 4. Insert active free enrollment with all required NOT NULL fields
         const { data: enrollment, error } = await supabase
-            .from('enrollments')
-            .insert([{
-                student_id: studentId,
-                course_id: resolvedCourseId,
-                enrollment_status: 'active',
-                payment_status: 'paid',
-                payment_id: 'free_enroll_' + Date.now(),
-                enrollment_type: 'free',
-                active: true,
-                enrolled_at: new Date().toISOString()
-            }])
+            .from('course_enrollments')
+            .insert([
+                {
+                    student_id: studentId,
+                    course_id: resolvedCourseId,
+                    payment_status: 'Free',
+                    enrolled_at: new Date().toISOString(),
+                    progress: 0,
+                    completed: false,
+                    student_name: studentName,
+                    student_email: studentEmail,
+                    course_name: courseData.title,
+                    instructor_id: courseData.instructor_id
+                }
+            ])
             .select()
             .single();
 
@@ -426,6 +454,7 @@ exports.enrollFreeCourse = async (req, res) => {
             data: enrollment
         });
     } catch (error) {
+        console.error("[enrollFreeCourse] Error:", error.message);
         return res.status(500).json({
             success: false,
             message: "Failed to process free course enrollment",
@@ -433,6 +462,7 @@ exports.enrollFreeCourse = async (req, res) => {
         });
     }
 };
+
 
 // Enroll Student in PAID Course (Simulates Checkout Flow)
 exports.enrollPaidCourse = async (req, res) => {
@@ -456,13 +486,13 @@ exports.enrollPaidCourse = async (req, res) => {
         }
 
         // 1. Check if already enrolled
-        const { data: existing } = await supabase
-            .from('enrollments')
+        const { data: existing, error: existingError } = await supabase
+            .from('course_enrollments')
             .select('*')
             .eq('course_id', resolvedCourseId)
             .eq('student_id', studentId)
-            .eq('enrollment_status', 'active')
             .maybeSingle();
+        if (existingError) throw existingError;
 
         if (existing) {
             return res.status(200).json({
@@ -472,21 +502,46 @@ exports.enrollPaidCourse = async (req, res) => {
             });
         }
 
-        // 2. Simulate payment validation and activate enrollment
-        const simulatedPaymentId = 'pay_sim_' + Math.random().toString(36).substr(2, 9);
+        // 2. Fetch course details (needed for NOT NULL columns)
+        const { data: courseData, error: courseError } = await supabase
+            .from('courses')
+            .select('id, title, instructor_id')
+            .eq('id', resolvedCourseId)
+            .maybeSingle();
+
+        if (courseError || !courseData) {
+            return res.status(404).json({ success: false, message: "Course not found" });
+        }
+
+        // 3. Fetch student profile (needed for NOT NULL columns)
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email, full_name')
+            .eq('id', studentId)
+            .maybeSingle();
+
+        const studentName = profile?.full_name || 
+            `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 
+            req.user.email || 'Student';
+        const studentEmail = profile?.email || req.user.email || '';
+
+        // 4. Simulate payment validation and activate enrollment
         const { data: enrollment, error } = await supabase
-            .from('enrollments')
-            .insert([{
-                student_id: studentId,
-                course_id: resolvedCourseId,
-                enrollment_status: 'active',
-                payment_status: 'paid',
-                payment_id: simulatedPaymentId,
-                enrollment_type: 'paid',
-                active: true,
-                enrolled_at: new Date().toISOString()
-            }])
-            .select()
+            .from('course_enrollments')
+            .insert([
+                {
+                    student_id: studentId,
+                    course_id: resolvedCourseId,
+                    payment_status: 'paid',
+                    enrolled_at: new Date().toISOString(),
+                    progress: 0,
+                    completed: false,
+                    student_name: studentName,
+                    student_email: studentEmail,
+                    course_name: courseData.title,
+                    instructor_id: courseData.instructor_id
+                }
+            ]).select()
             .single();
 
         if (error) throw error;
@@ -526,19 +581,20 @@ exports.checkCourseEnrollment = async (req, res) => {
             resolvedCourseId = course.id;
         }
 
+        // Check enrollment status
         const { data: enrollment, error } = await supabase
-            .from('enrollments')
+            .from('course_enrollments')
             .select('*')
             .eq('course_id', resolvedCourseId)
             .eq('student_id', studentId)
-            .eq('enrollment_status', 'active')
             .maybeSingle();
-
         if (error) throw error;
+
+        const isEnrolled = !!enrollment && (enrollment.payment_status === 'paid' || enrollment.payment_status === 'Free' || enrollment.payment_status === 'completed');
 
         return res.status(200).json({
             success: true,
-            enrolled: !!enrollment,
+            enrolled: isEnrolled,
             data: enrollment || null
         });
     } catch (error) {
@@ -689,25 +745,13 @@ exports.getStudentEnrolledCourses = async (req, res) => {
         const studentId = req.user.id;
 
         const { data: enrollments, error } = await supabase
-            .from('enrollments')
-            .select(`
-                id,
-                enrolled_at,
-                course:course_id(
-                    id,
-                    title,
-                    description,
-                    price,
-                    thumbnail,
-                    final_thumbnail_url,
-                    is_free,
-                    instructor:instructor_id(first_name, last_name, avatar_url, image)
-                )
-            `)
+            .from('course_enrollments')
+            .select('*, course:course_id(*)')
             .eq('student_id', studentId)
-            .eq('enrollment_status', 'active');
-
+            .eq('payment_status', 'paid');
         if (error) throw error;
+
+
 
         // Clean null entries
         const formatted = (enrollments || [])

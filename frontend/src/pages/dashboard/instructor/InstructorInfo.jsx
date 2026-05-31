@@ -17,7 +17,11 @@ import {
   ShieldCheck,
   ExternalLink,
   Save,
-  Edit3
+  Edit3,
+  Loader2,
+  Users,
+  IndianRupee,
+  Activity
 } from "lucide-react";
 
 const TIMEZONES = [
@@ -130,10 +134,7 @@ export default function InstructorInfo() {
       <div className="min-h-[600px] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-            <svg className="w-6 h-6 animate-spin text-white" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 0 12h4z" />
-            </svg>
+            <Loader2 className="w-6 h-6 animate-spin text-white" />
           </div>
           <p className="text-slate-400 text-sm">Loading instructor information...</p>
         </div>
@@ -163,6 +164,33 @@ export default function InstructorInfo() {
           {isOnboardingComplete ? "Edit Profile" : "Continue Setup"}
         </button>
       </div>
+
+      {/* Quick Stats Summary */}
+      {isOnboardingComplete && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {[
+            { label: "Total Students", value: "1,234+", icon: Users, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+            { label: "Active Courses", value: "12", icon: BookOpen, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+            { label: "Lifetime Earnings", value: "₹45,678", icon: IndianRupee, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" }
+          ].map((stat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className={`p-6 rounded-2xl bg-white/5 border ${stat.border} shadow-xl flex items-center gap-4 hover:bg-white/10 transition-all backdrop-blur-xl`}
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stat.bg}`}>
+                <stat.icon className={`w-7 h-7 ${stat.color}`} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-400">{stat.label}</p>
+                <p className="text-2xl font-bold text-white">{stat.value}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {!isOnboardingComplete && (
         <motion.div

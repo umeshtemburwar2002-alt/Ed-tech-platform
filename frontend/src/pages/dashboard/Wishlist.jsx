@@ -1,183 +1,87 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import { motion } from 'framer-motion';
+import { useSelector, useDispatch } from 'react-redux';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   FaHeart,
   FaHeartBroken,
   FaShoppingCart,
-  FaEye,
-  FaShare,
   FaStar,
   FaUsers,
   FaClock,
-  FaPlay,
-  FaBookmark,
   FaGraduationCap,
-  FaFilter,
-  FaSort,
-  FaSearch,
-  FaGrid3X3,
-  FaList,
-  FaTrash,
   FaRocket,
   FaFire,
   FaTags,
-  FaCalendarAlt,
-  FaDownload,
-  FaExternalLinkAlt,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaInfoCircle,
-  FaLightbulb,
-  FaGift,
   FaPercent,
-  FaTrophy
+  FaTrophy,
+  FaCheckCircle
 } from 'react-icons/fa';
-import { Card, Button, Badge } from '../../components/ui';
+import { Button, Badge } from '../../components/ui';
 import { toast } from 'react-hot-toast';
+import { removeFromWishlist } from '../../services/operations/wishlistAPI';
+import { addToCart } from '../../slices/cartSlice';
 
 const Wishlist = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.profile);
+  const { token } = useSelector((state) => state.auth);
+  const { wishlist: wishlistItems } = useSelector((state) => state.wishlist);
+  
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [filterCategory, setFilterCategory] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedItems, setSelectedItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // Mock wishlist data
-  const wishlistItems = [
-    {
-      id: 1,
-      title: "Advanced React Development",
-      instructor: "Sarah Wilson",
-      instructorImage: "👩‍💻",
-      thumbnail: "⚛️",
-      category: "Web Development",
-      level: "Advanced",
-      duration: "45 hours",
-      rating: 4.9,
-      reviews: 3420,
-      students: 28500,
-      price: "₹3,999",
-      originalPrice: "₹12,999",
-      discount: 69,
-      addedDate: "2024-01-20",
-      skills: ['React', 'Redux', 'Context API', 'Hooks', 'Testing'],
-      bestseller: true,
-      trending: false,
-      newCourse: false,
-      certificate: true,
-      lifetimeAccess: true,
-      mobileAccess: true
-    },
-    {
-      id: 2,
-      title: "Machine Learning with Python",
-      instructor: "Dr. Alex Kumar",
-      instructorImage: "👨‍🔬",
-      thumbnail: "🤖",
-      category: "Data Science",
-      level: "Intermediate",
-      duration: "60 hours",
-      rating: 4.8,
-      reviews: 2890,
-      students: 19200,
-      price: "₹4,999",
-      originalPrice: "₹15,999",
-      discount: 69,
-      addedDate: "2024-01-18",
-      skills: ['Python', 'Scikit-learn', 'Pandas', 'NumPy', 'Matplotlib'],
-      bestseller: false,
-      trending: true,
-      newCourse: false,
-      certificate: true,
-      lifetimeAccess: true,
-      mobileAccess: true
-    },
-    {
-      id: 3,
-      title: "UI/UX Design Masterclass",
-      instructor: "Emma Chen",
-      instructorImage: "👩‍🎨",
-      thumbnail: "🎨",
-      category: "Design",
-      level: "Beginner",
-      duration: "35 hours",
-      rating: 4.7,
-      reviews: 1560,
-      students: 12800,
-      price: "₹2,999",
-      originalPrice: "₹9,999",
-      discount: 70,
-      addedDate: "2024-01-15",
-      skills: ['Figma', 'Adobe XD', 'User Research', 'Prototyping', 'Design Systems'],
-      bestseller: false,
-      trending: false,
-      newCourse: true,
-      certificate: true,
-      lifetimeAccess: true,
-      mobileAccess: true
-    }
-  ];
 
   // Filter and sort wishlist items
-  const filteredItems = wishlistItems
+  const filteredItems = [...wishlistItems]
     .filter(item => {
-      const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.instructor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.category.toLowerCase().includes(searchTerm.toLowerCase());
+      const title = item.course_name || item.title || "";
+      const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesFilter = filterCategory === 'all' || item.category.toLowerCase().includes(filterCategory.toLowerCase());
+      const category = item.category || "";
+      const matchesFilter = filterCategory === 'all' || category.toLowerCase().includes(filterCategory.toLowerCase());
       
       return matchesSearch && matchesFilter;
     })
     .sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          return a.title.localeCompare(b.title);
+          const titleA = a.course_name || a.title || "";
+          const titleB = b.course_name || b.title || "";
+          return titleA.localeCompare(titleB);
         case 'price':
-          return parseInt(a.price.replace(/[^0-9]/g, '')) - parseInt(b.price.replace(/[^0-9]/g, ''));
+          return (a.price || 0) - (b.price || 0);
         case 'rating':
-          return b.rating - a.rating;
+          return (b.rating || 0) - (a.rating || 0);
         case 'recent':
         default:
-          return new Date(b.addedDate) - new Date(a.addedDate);
+          return new Date(b.created_at || Date.now()) - new Date(a.created_at || Date.now());
       }
     });
 
-  // Calculate statistics
+  // Calculate statistics safely
   const stats = {
     total: wishlistItems.length,
-    totalValue: wishlistItems.reduce((sum, item) => sum + parseInt(item.originalPrice.replace(/[^0-9]/g, '')), 0),
-    totalSavings: wishlistItems.reduce((sum, item) => {
-      const original = parseInt(item.originalPrice.replace(/[^0-9]/g, ''));
-      const current = parseInt(item.price.replace(/[^0-9]/g, ''));
-      return sum + (original - current);
-    }, 0),
-    avgRating: (wishlistItems.reduce((sum, item) => sum + item.rating, 0) / wishlistItems.length).toFixed(1),
+    totalValue: wishlistItems.reduce((sum, item) => sum + Number(item.price || 0), 0),
+    totalSavings: 0, // Simplified as originalPrice is not always available in DB
+    avgRating: wishlistItems.length 
+        ? (wishlistItems.reduce((sum, item) => sum + Number(item.rating || 0), 0) / wishlistItems.length).toFixed(1)
+        : 0,
     categories: [...new Set(wishlistItems.map(item => item.category))].length
   };
 
   const handleRemoveFromWishlist = (itemId) => {
-    toast.success('Course removed from wishlist!');
-    // Remove logic
+    dispatch(removeFromWishlist(itemId, token));
   };
 
-  const handleAddToCart = (itemId) => {
-    toast.success('Course added to cart!');
-    // Add to cart logic
+  const handleAddToCart = (course) => {
+    dispatch(addToCart(course));
   };
 
   const handleBuyNow = (itemId) => {
     toast.success('Redirecting to checkout...');
-    // Buy now logic
-  };
-
-  const handleShare = (item) => {
-    navigator.clipboard.writeText(`Check out this course: ${item.title}`);
-    toast.success('Course link copied to clipboard!');
+    // Buy now logic here
   };
 
   return (
@@ -196,17 +100,16 @@ const Wishlist = () => {
                 My Wishlist
               </h1>
               <p className="text-richblack-300 text-lg">
-                Keep track of courses you want to take and get notified of price drops
+                Keep track of courses you want to take
               </p>
             </div>
           </div>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
               { label: "Total Items", value: stats.total, icon: FaHeart, color: "text-pink-400", bg: "bg-pink-600" },
-              { label: "Total Value", value: `₹${(stats.totalValue / 1000).toFixed(0)}K`, icon: FaTags, color: "text-green-400", bg: "bg-green-600" },
-              { label: "Total Savings", value: `₹${(stats.totalSavings / 1000).toFixed(0)}K`, icon: FaPercent, color: "text-blue-400", bg: "bg-blue-600" },
+              { label: "Total Value", value: `₹${stats.totalValue}`, icon: FaTags, color: "text-green-400", bg: "bg-green-600" },
               { label: "Avg Rating", value: stats.avgRating, icon: FaStar, color: "text-yellow-400", bg: "bg-yellow-600" },
               { label: "Categories", value: stats.categories, icon: FaGraduationCap, color: "text-purple-400", bg: "bg-purple-600" }
             ].map((stat, index) => {
@@ -258,172 +161,89 @@ const Wishlist = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="bg-richblack-800 rounded-xl border border-richblack-700 hover:border-pink-500 transition-all duration-300 group hover:scale-105 overflow-hidden p-6"
+                  className="bg-richblack-800 rounded-xl border border-richblack-700 hover:border-pink-500 transition-all duration-300 group hover:scale-105 overflow-hidden p-6 flex flex-col"
                 >
-                  {/* Course Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-4xl">{item.thumbnail}</div>
-                    <div className="flex gap-2">
-                      {item.bestseller && (
-                        <Badge className="bg-orange-600 text-white">
-                          <FaTrophy className="mr-1" /> Bestseller
-                        </Badge>
-                      )}
-                      {item.trending && (
-                        <Badge className="bg-red-600 text-white">
-                          <FaFire className="mr-1" /> Trending
-                        </Badge>
-                      )}
-                      {item.newCourse && (
-                        <Badge className="bg-green-600 text-white">
-                          <FaRocket className="mr-1" /> New
-                        </Badge>
-                      )}
-                    </div>
+                  {/* Course Header Image with Remove Button */}
+                  <div className="w-full aspect-video rounded-lg overflow-hidden bg-richblack-700 mb-4 relative group/image">
+                    {item.thumbnail || item.thumbnail_url || item.custom_thumbnail_url ? (
+                      <img src={item.thumbnail || item.thumbnail_url || item.custom_thumbnail_url} alt="thumbnail" className="w-full h-full object-cover transition-transform duration-500 group-hover/image:scale-110" />
+                    ) : (
+                       <div className="w-full h-full flex items-center justify-center text-richblack-500 text-4xl">📚</div>
+                    )}
+                    
+                    {/* Absolute positioned remove button */}
+                    <button 
+                      className="absolute top-2 right-2 bg-richblack-900/60 backdrop-blur-sm p-2 rounded-full border border-red-500/50 text-pink-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all duration-200 shadow-lg z-10"
+                      onClick={() => handleRemoveFromWishlist(item.id)}
+                      title="Remove from wishlist"
+                    >
+                      <FaHeart className="w-4 h-4 hover:hidden" />
+                      {/* We could do a broken heart on hover, but keeping it simple is fine */}
+                    </button>
+                    
+                    {/* Dark overlay gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-richblack-900/80 via-transparent to-transparent opacity-60"></div>
                   </div>
 
                   {/* Course Info */}
-                  <div className="mb-4">
-                    <Badge variant="outline" className="text-xs mb-2">{item.category}</Badge>
+                  <div className="mb-4 flex-grow">
+                    <Badge variant="outline" className="text-xs mb-2 border-pink-500/30 text-pink-400">{item.category || 'General'}</Badge>
                     <h3 className="text-xl font-bold mb-2 group-hover:text-pink-400 transition-colors line-clamp-2">
-                      {item.title}
+                      {item.title || item.course_name}
                     </h3>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-2xl">{item.instructorImage}</span>
-                      <span className="text-richblack-300 text-sm">by {item.instructor}</span>
-                    </div>
                   </div>
 
                   {/* Course Stats */}
-                  <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 mb-4 text-sm mt-auto">
                     <div className="flex items-center gap-1">
                       <FaStar className="text-yellow-400" />
-                      <span className="font-semibold">{item.rating}</span>
-                      <span className="text-richblack-400">({item.reviews})</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-richblack-300">
-                      <FaUsers className="text-sm" />
-                      <span className="text-sm">{item.students.toLocaleString()}</span>
+                      <span className="font-semibold">{item.rating || 0}</span>
                     </div>
                     <div className="flex items-center gap-1 text-richblack-300">
                       <FaClock className="text-sm" />
-                      <span className="text-sm">{item.duration}</span>
+                      <span className="text-sm">{item.duration || 'N/A'}</span>
                     </div>
                     <div className="flex items-center gap-1 text-richblack-300">
                       <FaGraduationCap className="text-sm" />
-                      <span className="text-sm">{item.level}</span>
+                      <span className="text-sm">{item.level || 'All Levels'}</span>
                     </div>
                   </div>
 
                   {/* Price */}
                   <div className="mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl font-bold text-green-400">{item.price}</span>
-                      <span className="text-richblack-400 line-through text-sm">{item.originalPrice}</span>
-                      <Badge className="bg-red-500 text-white text-xs">{item.discount}% OFF</Badge>
-                    </div>
-                    <div className="text-xs text-richblack-400">
-                      Added on {new Date(item.addedDate).toLocaleDateString()}
-                    </div>
-                  </div>
-
-                  {/* Features */}
-                  <div className="mb-4">
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      {item.certificate && (
-                        <div className="flex items-center gap-1 text-green-400">
-                          <FaCheckCircle />
-                          <span>Certificate</span>
-                        </div>
-                      )}
-                      {item.lifetimeAccess && (
-                        <div className="flex items-center gap-1 text-blue-400">
-                          <FaCheckCircle />
-                          <span>Lifetime Access</span>
-                        </div>
-                      )}
-                      {item.mobileAccess && (
-                        <div className="flex items-center gap-1 text-purple-400">
-                          <FaCheckCircle />
-                          <span>Mobile Access</span>
-                        </div>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-bold text-green-400">
+                          {item.price ? `₹${item.price}` : 'FREE'}
+                      </span>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="primary" 
-                      size="small" 
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={() => handleAddToCart(item.id)}
+                  <div className="flex flex-col gap-3 mt-auto">
+                    <button
+                      className="w-full flex items-center justify-center bg-pink-600 hover:bg-pink-700 text-white px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 shadow-lg shadow-pink-500/20 group-hover:shadow-pink-500/40"
+                      onClick={() => {
+                        const course = { ...item };
+                        if (!course._id) course._id = course.id;
+                        handleAddToCart(course);
+                      }}
                     >
                       <FaShoppingCart className="mr-2" />
                       Add to Cart
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      size="small" 
-                      className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
+                    </button>
+                    <button 
+                      className="w-full flex items-center justify-center bg-yellow-500 hover:bg-yellow-600 text-richblack-900 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-yellow-500/20 group-hover:shadow-yellow-500/40"
                       onClick={() => handleBuyNow(item.id)}
                     >
-                      <FaRocket />
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      size="small" 
-                      className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
-                      onClick={() => handleRemoveFromWishlist(item.id)}
-                    >
-                      <FaHeartBroken />
-                    </Button>
+                      <FaRocket className="mr-2" />
+                      Buy Now
+                    </button>
                   </div>
                 </motion.div>
               ))}
             </div>
           )}
         </motion.div>
-
-        {/* Savings Summary */}
-        {filteredItems.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-12 bg-gradient-to-r from-pink-600 via-red-600 to-orange-600 rounded-xl p-8 text-center"
-          >
-            <div className="text-4xl mb-4">💰</div>
-            <h3 className="text-2xl font-bold text-white mb-2">Amazing Savings Await!</h3>
-            <p className="text-white/90 mb-6 max-w-2xl mx-auto">
-              You're saving ₹{(stats.totalSavings / 1000).toFixed(0)}K on your wishlist! 
-              Add these courses to cart and start learning today.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                variant="secondary" 
-                className="bg-white text-red-600 hover:bg-gray-100"
-                onClick={() => {
-                  filteredItems.forEach(item => handleAddToCart(item.id));
-                }}
-              >
-                <FaShoppingCart className="mr-2" />
-                Add All to Cart
-              </Button>
-              <Link to="/all-courses">
-                <Button 
-                  variant="outline" 
-                  className="border-white text-white hover:bg-white hover:text-red-600"
-                >
-                  <FaRocket className="mr-2" />
-                  Explore More Courses
-                </Button>
-              </Link>
-            </div>
-          </motion.div>
-        )}
       </div>
     </div>
   );

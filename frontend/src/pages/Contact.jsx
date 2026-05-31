@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { submitGuestContact } from '../services/operations/supportAPI';
+import { Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
 
 const Contact = () => {
   // Simulating user states - in real app, these come from Redux or Auth Context
@@ -35,29 +36,19 @@ const Contact = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isLoggedIn) {
-      // Public / guest contact form
-      const result = await submitGuestContact({
-        name:    formData.name,
-        email:   formData.email,
-        subject: formData.subject,
-        message: formData.message,
-      });
-      if (result.success) {
-        setTicketId(result.ticketId ? `#${String(result.ticketId).slice(0, 8).toUpperCase()}` : '');
-        setIsSubmitted(true);
-        setFormData({ ...formData, name: '', email: '', subject: '', message: '' });
-        setTimeout(() => setIsSubmitted(false), 5000);
-      }
-      return;
+    // Use the real backend endpoint for everyone submitting the public contact form
+    const result = await submitGuestContact({
+      name:    formData.name,
+      email:   formData.email,
+      subject: formData.subject,
+      message: formData.message,
+    });
+    if (result.success) {
+      setTicketId(result.ticketId ? `#${String(result.ticketId).slice(0, 8).toUpperCase()}` : '');
+      setIsSubmitted(true);
+      setFormData({ ...formData, name: '', email: '', subject: '', message: '' });
+      setTimeout(() => setIsSubmitted(false), 5000);
     }
-
-    // Authenticated users — handled by the dashboard support pages
-    const newId = `#${Math.floor(10000 + Math.random() * 90000)}`;
-    setTicketId(newId);
-    setIsSubmitted(true);
-    setTickets([{ id: newId, subject: formData.issueType || formData.subject, status: 'Pending', date: new Date().toLocaleDateString() }, ...tickets]);
-    setTimeout(() => setIsSubmitted(false), 5000);
   };
 
   const renderGuestForm = () => (
@@ -103,11 +94,18 @@ const Contact = () => {
         <div className="pt-8 border-t border-white/5">
           <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Follow Us</p>
           <div className="flex gap-4">
-            {['linkedin', 'instagram', 'youtube', 'twitter'].map(social => (
-              <a key={social} href={`#${social}`} className="w-10 h-10 bg-white/5 text-slate-400 border border-white/10 rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300">
-                <i className={`fab fa-${social}`}></i>
-              </a>
-            ))}
+            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/5 text-slate-400 border border-white/10 rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300">
+              <Linkedin size={24} />
+            </a>
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/5 text-slate-400 border border-white/10 rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300">
+              <Instagram size={24} />
+            </a>
+            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/5 text-slate-400 border border-white/10 rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300">
+              <Twitter size={24} />
+            </a>
+            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/5 text-slate-400 border border-white/10 rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300">
+              <Facebook size={24} />
+            </a>
           </div>
         </div>
       </motion.div>
@@ -315,34 +313,30 @@ const Contact = () => {
         <div className="text-center mb-16">
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-5xl font-bold text-white mb-4">How can we help?</motion.h1>
           <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-slate-400 max-w-2xl mx-auto">
-            {isLoggedIn ? `Welcome back, ${user.firstName}! Select an issue type and we'll resolve it as soon as possible.` : 'We are here to answer any questions you may have. Reach out to us and we will respond as soon as we can.'}
+            We are here to answer any questions you may have. Reach out to us and we will respond as soon as we can.
           </motion.p>
         </div>
 
-        {!isLoggedIn && renderGuestForm()}
-        {isLoggedIn && userRole === 'student' && renderStudentTeacherForm('student')}
-        {isLoggedIn && userRole === 'instructor' && renderStudentTeacherForm('instructor')}
+        {renderGuestForm()}
 
-        {!isLoggedIn && (
-          <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mt-24">
-            <h2 className="text-3xl font-bold text-white mb-12 text-center">Frequently Asked Questions</h2>
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              {[
-                { q: "How do I enroll in a course?", a: "Simply browse our catalog, click on a course you like, and hit the 'Enroll Now' button. You'll be guided through the payment process." },
-                { q: "Can I access courses offline?", a: "Yes! Our mobile app allows you to download lessons and watch them anytime, even without an internet connection." },
-                { q: "Is there a refund policy?", a: "We offer a 30-day money-back guarantee for all our premium courses if you're not satisfied with the content." },
-                { q: "Do I get a certificate?", a: "Every premium course on our platform comes with a verified certificate of completion that you can share on LinkedIn." }
-              ].map((faq, idx) => (
-                <div key={idx} className="glass-dark p-8 rounded-3xl hover:shadow-lg transition-all duration-300 border border-white/5">
-                  <h3 className="font-bold text-white mb-3 flex items-start gap-3">
-                    <span className="text-blue-400 font-black">Q.</span> {faq.q}
-                  </h3>
-                  <p className="text-slate-400 leading-relaxed pl-7">{faq.a}</p>
-                </div>
-              ))}
-            </div>
-          </motion.section>
-        )}
+        <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mt-24">
+          <h2 className="text-3xl font-bold text-white mb-12 text-center">Frequently Asked Questions</h2>
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {[
+              { q: "How do I enroll in a course?", a: "Simply browse our catalog, click on a course you like, and hit the 'Enroll Now' button. You'll be guided through the payment process." },
+              { q: "Can I access courses offline?", a: "Yes! Our mobile app allows you to download lessons and watch them anytime, even without an internet connection." },
+              { q: "Is there a refund policy?", a: "We offer a 30-day money-back guarantee for all our premium courses if you're not satisfied with the content." },
+              { q: "Do I get a certificate?", a: "Every premium course on our platform comes with a verified certificate of completion that you can share on LinkedIn." }
+            ].map((faq, idx) => (
+              <div key={idx} className="glass-dark p-8 rounded-3xl hover:shadow-lg transition-all duration-300 border border-white/5">
+                <h3 className="font-bold text-white mb-3 flex items-start gap-3">
+                  <span className="text-blue-400 font-black">Q.</span> {faq.q}
+                </h3>
+                <p className="text-slate-400 leading-relaxed pl-7">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </motion.section>
       </div>
     </div>
   );

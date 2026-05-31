@@ -2,15 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FaGraduationCap, 
-  FaBars, 
-  FaTimes, 
-  FaBell, 
-  FaUserCircle, 
+import { useNotifications } from '../../context/NotificationContext';
+import {
+  FaGraduationCap,
+  FaBars,
+  FaTimes,
+  FaBell,
+  FaUserCircle,
   FaSignOutAlt,
   FaRocket,
   FaShoppingCart,
+  FaHeart,
   FaShieldAlt,
   FaChevronDown
 } from 'react-icons/fa';
@@ -20,7 +22,8 @@ import { toast } from 'react-hot-toast';
 import NotificationDropdown from './NotificationDropdown';
 import ProfileDropdown from './ProfileDropdown';
 import useOnClickOutside from '../../hooks/useOnClickOutside';
-import Logo from '../navbar/Logo';
+import Logo from '../../components/navbar/Logo';
+import { fetchWishlist } from '../../services/operations/wishlistAPI';
 
 
 const Navbar = () => {
@@ -34,12 +37,13 @@ const Navbar = () => {
 
   // ✅ Use ONLY Redux for currentUser — it holds the profile with accountType.
   // AuthContext.user is the raw Supabase auth.User (no accountType field).
-  const { user }  = useSelector((state) => state.profile);
+  const { user } = useSelector((state) => state.profile);
   const { token } = useSelector((state) => state.auth);
-  const { cart }  = useSelector((state) => state.cart);
+  const { cart } = useSelector((state) => state.cart);
+  const { wishlist } = useSelector((state) => state.wishlist);
 
   // Alias: legacy code used currentUser/currentToken
-  const currentUser  = user;
+  const currentUser = user;
   const currentToken = token;
 
   const notificationRef = useRef(null);
@@ -49,10 +53,7 @@ const Navbar = () => {
   useOnClickOutside(notificationRef, () => setShowNotifications(false));
   useOnClickOutside(profileRef, () => setIsProfileOpen(false));
 
-  const notifications = [
-    { id: 1, title: 'New Lecture', message: 'Introduction to React Hooks added', time: '2 hours ago' },
-    { id: 2, title: 'Quiz Reminder', message: 'JavaScript Quiz due tomorrow', time: '5 hours ago' },
-  ];
+  const { notifications, unreadCount } = useNotifications();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -61,6 +62,12 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (token && user?.accountType === "Student") {
+      dispatch(fetchWishlist(token));
+    }
+  }, [token, user?.accountType, dispatch]);
 
   const handleLogout = async () => {
     try {
@@ -85,19 +92,17 @@ const Navbar = () => {
     { name: 'Contact', path: '/contact' },
   ];
 
-  // Post-Login: no extra nav links — user navigates via dashboard sidebar + profile dropdown
-  const studentLinks = [];
-
-  const currentLinks = (currentToken && currentUser) ? studentLinks : publicLinks;
+    // Determine navigation links based on user role
+   // Show all public links—including "Explore Courses"—for every user
+   const currentLinks = publicLinks;
 
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className={`fixed w-full z-[100] transition-all duration-500 ${
-      isScrolled 
-        ? 'bg-[#000814]/80 backdrop-blur-md py-3 border-b border-white/10 shadow-2xl shadow-cyan-500/10' 
+    <nav className={`fixed w-full z-[100] transition-all duration-500 ${isScrolled
+        ? 'bg-[#000814]/80 backdrop-blur-md py-3 border-b border-white/10 shadow-2xl shadow-cyan-500/10'
         : 'bg-transparent py-5'
-    }`}>
+      }`}>
       <div className="flex justify-between items-center px-6">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 group">
@@ -111,13 +116,12 @@ const Navbar = () => {
               <li key={link.name}>
                 <Link
                   to={link.path}
-                  className={`relative py-2 text-sm font-bold tracking-wide transition-all duration-300 hover:text-cyan-400 ${
-                    isActive(link.path) ? 'text-cyan-400' : 'text-slate-300'
-                  }`}
+                  className={`relative py-2 text-sm font-bold tracking-wide transition-all duration-300 hover:text-cyan-400 ${isActive(link.path) ? 'text-cyan-400' : 'text-slate-300'
+                    }`}
                 >
                   {link.name}
                   {isActive(link.path) && (
-                    <motion.span 
+                    <motion.span
                       layoutId="nav-underline"
                       className="absolute bottom-0 left-0 w-full h-[2px] bg-cyan-400 shadow-[0_0_8px_rgba(0,180,216,0.6)]"
                     />
@@ -130,7 +134,7 @@ const Navbar = () => {
           <div className="flex items-center gap-6 ml-4 border-l border-white/10 pl-10">
             {currentToken && currentUser ? (
               <div className="flex items-center gap-5">
-                {/* Cart Icon */}
+                {/* Cart Icon — hidden when empty */}
                 {currentUser?.accountType === "Student" && cart.length > 0 && (
                   <Link to="/cart" className="relative w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/20 transition-all group">
                     <FaShoppingCart className="text-lg" />
@@ -140,14 +144,24 @@ const Navbar = () => {
                   </Link>
                 )}
 
+                {/* Wishlist Icon — hidden when empty */}
+                {currentUser?.accountType === "Student" && wishlist?.length > 0 && (
+                  <Link to="/dashboard/wishlist" className="relative w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/20 transition-all group">
+                    <FaHeart className="text-lg group-hover:text-pink-500 transition-colors" />
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {wishlist.length}
+                    </span>
+                  </Link>
+                )}
+
                 {/* Notifications */}
-                <div 
-                  className="relative" 
+                <div
+                  className="relative"
                   ref={notificationRef}
                   onMouseEnter={() => setShowNotifications(true)}
                   onMouseLeave={() => setShowNotifications(false)}
                 >
-                  <button 
+                  <button
                     onClick={() => {
                       setShowNotifications(!showNotifications);
                       setIsProfileOpen(false);
@@ -155,24 +169,26 @@ const Navbar = () => {
                     className="relative w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/20 transition-all group"
                   >
                     <FaBell className="text-lg group-hover:animate-swing" />
-                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(0,180,216,0.8)]"></span>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-500 text-white text-xs rounded-full flex items-center justify-center">{unreadCount}</span>
+                    )}
                   </button>
 
-                  <NotificationDropdown 
-                    isOpen={showNotifications} 
-                    onClose={() => setShowNotifications(false)} 
+                  <NotificationDropdown
+                    isOpen={showNotifications}
+                    onClose={() => setShowNotifications(false)}
                     notifications={notifications}
                   />
                 </div>
 
                 {/* Profile Dropdown */}
-                <div 
-                  className="relative" 
+                <div
+                  className="relative"
                   ref={profileRef}
                   onMouseEnter={() => setIsProfileOpen(true)}
                   onMouseLeave={() => setIsProfileOpen(false)}
                 >
-                  <button 
+                  <button
                     onClick={() => {
                       setIsProfileOpen(!isProfileOpen);
                       setShowNotifications(false);
@@ -180,19 +196,19 @@ const Navbar = () => {
                     className="flex items-center gap-3 p-1.5 rounded-full bg-white/5 border border-white/10 hover:border-cyan-500/30 transition-all group"
                   >
                     <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 shadow-[0_0_10px_rgba(255,255,255,0.05)]">
-                      <img 
-                        src={currentUser?.image || `https://api.dicebear.com/5.x/initials/svg?seed=${currentUser?.firstName}`} 
-                        alt="User" 
+                      <img
+                        src={currentUser?.image || `https://api.dicebear.com/5.x/initials/svg?seed=${currentUser?.firstName}`}
+                        alt="User"
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <FaChevronDown className={`text-[10px] text-slate-400 transition-transform duration-300 mr-2 group-hover:text-white ${isProfileOpen ? 'rotate-180' : ''}`} />
                   </button>
 
-                  <ProfileDropdown 
-                    isOpen={isProfileOpen} 
-                    onClose={() => setIsProfileOpen(false)} 
-                    user={currentUser} 
+                  <ProfileDropdown
+                    isOpen={isProfileOpen}
+                    onClose={() => setIsProfileOpen(false)}
+                    user={currentUser}
                     handleLogout={handleLogout}
                   />
                 </div>
@@ -211,7 +227,7 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Toggle */}
-        <button 
+        <button
           className="lg:hidden text-white text-2xl"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
@@ -222,7 +238,7 @@ const Navbar = () => {
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: '100%' }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: '100%' }}
@@ -234,7 +250,7 @@ const Navbar = () => {
                 <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2">
                   <Logo />
                 </Link>
-                <button 
+                <button
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white"
                 >
@@ -243,17 +259,35 @@ const Navbar = () => {
               </div>
 
               <ul className="flex flex-col gap-6">
+                {/* Mobile Cart — hidden when empty */}
                 {currentUser?.accountType === "Student" && cart.length > 0 && (
                   <li>
                     <Link
                       to="/cart"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`text-2xl font-bold transition-all relative ${
-                        isActive("/cart") ? 'text-cyan-400' : 'text-slate-400 hover:text-white'
-                      }`}
+                      className={`flex items-center gap-2 text-2xl font-bold transition-all relative ${isActive("/cart") ? 'text-cyan-400' : 'text-slate-400 hover:text-white'
+                        }`}
                     >
-                      Cart
-                      <span className="absolute -top-2 -right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">{cart.length}</span>
+                      <FaShoppingCart /> Cart
+                      <span className="ml-2 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                        {cart.length}
+                      </span>
+                    </Link>
+                  </li>
+                )}
+                {/* Mobile Wishlist — hidden when empty */}
+                {currentUser?.accountType === "Student" && wishlist?.length > 0 && (
+                  <li>
+                    <Link
+                      to="/dashboard/wishlist"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-2 text-2xl font-bold transition-all relative ${isActive("/dashboard/wishlist") ? 'text-pink-400' : 'text-slate-400 hover:text-white'
+                        }`}
+                    >
+                      <FaHeart className={isActive("/dashboard/wishlist") ? 'text-pink-400' : ''} /> Wishlist
+                      <span className="ml-2 w-6 h-6 bg-pink-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                        {wishlist.length}
+                      </span>
                     </Link>
                   </li>
                 )}
@@ -262,9 +296,8 @@ const Navbar = () => {
                     <Link
                       to={link.path}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`text-2xl font-bold transition-all ${
-                        isActive(link.path) ? 'text-cyan-400' : 'text-slate-400 hover:text-white'
-                      }`}
+                      className={`text-2xl font-bold transition-all ${isActive(link.path) ? 'text-cyan-400' : 'text-slate-400 hover:text-white'
+                        }`}
                     >
                       {link.name}
                     </Link>
@@ -277,28 +310,27 @@ const Navbar = () => {
                   <div className="flex flex-col gap-6">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl overflow-hidden border border-cyan-500/30">
-                        <img 
-                          src={currentUser?.image || `https://api.dicebear.com/5.x/initials/svg?seed=${currentUser?.firstName}`} 
-                          alt="User" 
+                        <img
+                          src={currentUser?.image || `https://api.dicebear.com/5.x/initials/svg?seed=${currentUser?.firstName}`}
+                          alt="User"
                           className="w-full h-full object-cover"
                         />
                       </div>
                       <div>
                         <p className="text-lg font-bold text-white">{currentUser?.firstName} {currentUser?.lastName}</p>
-                        <p className={`text-xs font-bold uppercase tracking-widest ${
-                          currentUser?.accountType?.toLowerCase() === 'instructor'
+                        <p className={`text-xs font-bold uppercase tracking-widest ${currentUser?.accountType?.toLowerCase() === 'instructor'
                             ? 'text-violet-400'
                             : currentUser?.accountType?.toLowerCase() === 'admin'
-                            ? 'text-amber-400'
-                            : 'text-cyan-400'
-                        }`}>
+                              ? 'text-amber-400'
+                              : 'text-cyan-400'
+                          }`}>
                           {currentUser?.accountType === 'Instructor' ? 'Instructor Portal'
                             : currentUser?.accountType === 'Admin' ? 'Admin Portal'
-                            : 'Student Portal'}
+                              : 'Student Portal'}
                         </p>
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={handleLogout}
                       className="w-full py-4 rounded-2xl bg-red-500/10 text-red-500 font-bold flex items-center justify-center gap-3 border border-red-500/20"
                     >
@@ -307,15 +339,15 @@ const Navbar = () => {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
-                    <Link 
-                      to="/login" 
+                    <Link
+                      to="/login"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="w-full py-4 rounded-2xl bg-white/5 text-white font-bold text-center border border-white/10"
                     >
                       Sign In
                     </Link>
-                    <Link 
-                      to="/signup" 
+                    <Link
+                      to="/signup"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="btn-primary w-full py-4 text-center"
                     >

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import LogoMark from "../../../components/ui/LogoMark";
+import Logo from "../../../components/navbar/Logo";
 import {
   LayoutDashboard, BookOpen, PlusCircle, ClipboardList, HelpCircle,
   FileText, Users, MessageSquare, Video, Globe, BarChart2, DollarSign,
@@ -64,7 +64,7 @@ export default function InstructorSidebar() {
       {/* Logo */}
       <div className="p-5 border-b border-white/[0.08]">
         <Link to="/" className="flex items-center">
-          <LogoMark />
+          <Logo />
         </Link>
         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-2 ml-1">Instructor Portal</p>
       </div>

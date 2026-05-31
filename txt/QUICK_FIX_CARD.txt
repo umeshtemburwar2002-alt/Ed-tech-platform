@@ -1,0 +1,194 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    QUICK FIX CARD: 401 Invalid API Key Error                   ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+ERROR: 401 Unauthorized - Invalid API key
+ENDPOINT: https://bjfwdidbkbmlhowzuklk.supabase.co/auth/v1/token
+TRIGGER: Login attempt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 1: VERIFY KEYS (MOST IMPORTANT)
+────────────────────────────────────
+
+1. Go to https://app.supabase.com
+2. Select your project
+3. Click Settings → API
+4. Copy "Anon public key"
+5. Compare with frontend/.env REACT_APP_SUPABASE_ANON_KEY
+   - If different → Update frontend/.env
+6. Copy "Service role secret"
+7. Compare with backend/.env SUPABASE_SERVICE_ROLE_KEY
+   - If different → Update backend/.env
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 2: CHECK CORS
+──────────────────
+
+1. In Supabase Dashboard → Settings → API
+2. Scroll to "CORS Configuration"
+3. Look for http://localhost:3000
+   - If missing → Click "Add origin" → Enter http://localhost:3000 → Save
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 3: RESTART SERVERS
+───────────────────────
+
+Terminal 1 (Backend):
+  Ctrl+C (stop current)
+  cd backend
+  npm start
+  Wait for: ✅ Server running on port 4000
+
+Terminal 2 (Frontend):
+  Ctrl+C (stop current)
+  cd frontend
+  npm start
+  Wait for: Compiled successfully
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 4: CLEAR BROWSER CACHE
+────────────────────────────
+
+Option A (Easy):
+  1. Press F12 (open DevTools)
+  2. Right-click refresh button (⟳)
+  3. Click "Empty cache and hard refresh"
+
+Option B (Manual):
+  1. Press F12 (open DevTools)
+  2. Go to Console tab
+  3. Paste: localStorage.clear(); sessionStorage.clear(); location.reload();
+  4. Press Enter
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 5: TEST LOGIN
+──────────────────
+
+1. Go to http://localhost:3000/login
+2. Enter email and password
+3. Click "Sign In"
+4. Check browser console (F12 → Console):
+   ✅ [login] Starting login for: your-email@example.com
+   ✅ [login] ✅ Authentication successful
+   ✅ [login] ✅ Session persisted, redirecting...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+IF STILL GETTING 401 ERROR
+──────────────────────────
+
+1. Open DevTools (F12)
+2. Go to Console tab
+3. Run this test:
+   
+   const response = await fetch('https://bjfwdidbkbmlhowzuklk.supabase.co/auth/v1/token?grant_type=password', {
+     method: 'POST',
+     headers: {
+       'Content-Type': 'application/json',
+       'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY
+     },
+     body: JSON.stringify({
+       email: 'test@example.com',
+       password: 'password123'
+     })
+   });
+   const data = await response.json();
+   console.log("Status:", response.status);
+   console.log("Data:", data);
+
+4. If status is 401 with "Invalid API key":
+   → Keys don't match Supabase Dashboard
+   → Go back to STEP 1 and verify keys exactly
+
+5. If status is 401 with "Invalid login credentials":
+   → API key is valid
+   → Email/password is wrong
+   → Create account at /signup
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LAST RESORT: REGENERATE KEYS
+─────────────────────────────
+
+If nothing works:
+
+1. Go to Supabase Dashboard → Settings → API
+2. Click "Regenerate" next to "Anon public key"
+3. Copy new key → Update frontend/.env
+4. Click "Regenerate" next to "Service role secret"
+5. Copy new key → Update backend/.env
+6. Restart both servers
+7. Hard refresh browser
+8. Try login again
+
+⚠️  WARNING: This invalidates old keys. Any apps using old keys will break.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+VERIFICATION CHECKLIST
+──────────────────────
+
+Before testing login, verify ALL of these:
+
+  ☐ frontend/.env ANON_KEY matches Supabase Dashboard
+  ☐ backend/.env SERVICE_ROLE_KEY matches Supabase Dashboard
+  ☐ Both .env files have correct SUPABASE_URL
+  ☐ CORS includes http://localhost:3000
+  ☐ Frontend dev server restarted
+  ☐ Backend server restarted
+  ☐ Browser cache cleared
+  ☐ No extra spaces in .env files around =
+  ☐ Keys are not truncated (should be ~200+ characters)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REFERENCE FILES
+───────────────
+
+  📄 IMMEDIATE_ACTION_PLAN.md ........... Step-by-step guide (START HERE)
+  📄 FIX_401_INVALID_API_KEY.md ........ Detailed troubleshooting
+  📄 TEST_SUPABASE_CONNECTION.md ....... Testing procedures
+  📄 DIAGNOSE_SUPABASE_KEYS.md ......... Key analysis
+  📄 STATUS_REPORT.md .................. Current status
+  📄 AUTHENTICATION_SYSTEM_COMPLETE.md . System overview
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CURRENT CONFIGURATION
+─────────────────────
+
+Frontend:
+  REACT_APP_SUPABASE_URL=https://bjfwdidbkbmlhowzuklk.supabase.co
+  REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+Backend:
+  SUPABASE_URL=https://bjfwdidbkbmlhowzuklk.supabase.co
+  SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT'S BEEN DONE
+────────────────
+
+  ✅ Fixed all syntax errors
+  ✅ Fixed session synchronization
+  ✅ Added comprehensive logging
+  ✅ Verified environment configuration
+  ✅ Verified Supabase client initialization
+  ✅ Created diagnostic guides
+
+WHAT NEEDS USER ACTION
+──────────────────────
+
+  ⏳ Verify keys in Supabase Dashboard
+  ⏳ Check CORS configuration
+  ⏳ Restart servers
+  ⏳ Clear browser cache
+  ⏳ Test login
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

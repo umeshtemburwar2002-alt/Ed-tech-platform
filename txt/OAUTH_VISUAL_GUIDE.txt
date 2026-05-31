@@ -1,0 +1,195 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    OAUTH LOGIN - VISUAL GUIDE                                  ║
+║                         Google & GitHub Added                                  ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ LOGIN PAGE FLOW ─────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  STEP 1: Role Selection                                                       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                         │  │
+│  │  ⭐ Step 1 of 2                                                        │  │
+│  │                                                                         │  │
+│  │  Who are you?                                                          │  │
+│  │  Select your role to get the right experience                         │  │
+│  │                                                                         │  │
+│  │  ┌──────────────────┐  ┌──────────────────┐                           │  │
+│  │  │ 🎓 Student       │  │ 👨‍🏫 Instructor   │                           │  │
+│  │  │ Learn courses    │  │ Create courses   │                           │  │
+│  │  └──────────────────┘  └──────────────────┘                           │  │
+│  │                                                                         │  │
+│  │  [Continue as Student →]                                              │  │
+│  │                                                                         │  │
+│  │  Don't have an account? Sign up                                        │  │
+│  │                                                                         │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│  ↓ User clicks "Continue"                                                     │
+│                                                                                 │
+│  STEP 2: Authentication Methods (NEW!)                                        │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                         │  │
+│  │  ← Step 2 of 2                                                         │  │
+│  │     [Student]                                                          │  │
+│  │                                                                         │  │
+│  │  Sign in to continue                                                   │  │
+│  │                                                                         │  │
+│  │  Email                                                                 │  │
+│  │  [📧 name@example.com                                            ]    │  │
+│  │                                                                         │  │
+│  │  Password                                                              │  │
+│  │  [🔒 ••••••••                                                  👁️]   │  │
+│  │                                                                         │  │
+│  │  [Sign in as Student →]                                               │  │
+│  │                                                                         │  │
+│  │  ─────────── Or continue with ───────────                             │  │
+│  │                                                                         │  │
+│  │  ┌──────────────────┐  ┌──────────────────┐                           │  │
+│  │  │ 🔵 Google        │  │ ⚫ GitHub        │  ← NEW!                   │  │
+│  │  └──────────────────┘  └──────────────────┘                           │  │
+│  │                                                                         │  │
+│  │  Don't have an account? Create account                                 │  │
+│  │                                                                         │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│  ↓ User clicks Google or GitHub                                               │
+│                                                                                 │
+│  OAUTH REDIRECT                                                               │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                         │  │
+│  │  [Loading spinner]                                                     │  │
+│  │  Connecting to Google…                                                 │  │
+│  │                                                                         │  │
+│  │  (Redirecting to provider...)                                          │  │
+│  │                                                                         │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│  ↓ User signs in with provider                                                │
+│                                                                                 │
+│  CALLBACK & PROFILE CREATION                                                  │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                         │  │
+│  │  [Loading spinner]                                                     │  │
+│  │  Setting up your account…                                              │  │
+│  │                                                                         │  │
+│  │  (Creating profile with role: Student)                                 │  │
+│  │                                                                         │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+│  ↓ Profile created with role                                                  │
+│                                                                                 │
+│  DASHBOARD REDIRECT                                                           │
+│  ┌─────────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                         │  │
+│  │  ✅ Welcome to Student Dashboard!                                      │  │
+│  │                                                                         │  │
+│  │  [My Courses] [Wishlist] [Downloads]                                   │  │
+│  │                                                                         │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ OAUTH BUTTON STATES ─────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  NORMAL STATE                                                                 │
+│  ┌──────────────────┐  ┌──────────────────┐                                   │
+│  │ 🔵 Google        │  │ ⚫ GitHub        │                                   │
+│  └──────────────────┘  └──────────────────┘                                   │
+│                                                                                 │
+│  HOVER STATE                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐                                   │
+│  │ 🔵 Google        │  │ ⚫ GitHub        │  (Slightly brighter)              │
+│  └──────────────────┘  └──────────────────┘                                   │
+│                                                                                 │
+│  LOADING STATE                                                                │
+│  ┌──────────────────┐  ┌──────────────────┐                                   │
+│  │ ⟳ Google        │  │ ⚫ GitHub        │  (Spinner on clicked button)      │
+│  └──────────────────┘  └──────────────────┘                                   │
+│                                                                                 │
+│  DISABLED STATE                                                               │
+│  ┌──────────────────┐  ┌──────────────────┐                                   │
+│  │ 🔵 Google        │  │ ⚫ GitHub        │  (Faded, not clickable)           │
+│  └──────────────────┘  └──────────────────┘                                   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ AUTHENTICATION OPTIONS ──────────────────────────────────────────────────────┐
+│                                                                                 │
+│  OPTION 1: Email/Password (Existing)                                          │
+│  ├─ User enters email                                                         │
+│  ├─ User enters password                                                      │
+│  └─ Clicks "Sign in"                                                          │
+│                                                                                 │
+│  OPTION 2: Google OAuth (NEW)                                                 │
+│  ├─ User clicks "Google" button                                               │
+│  ├─ Redirected to Google sign-in                                              │
+│  ├─ User signs in with Google account                                         │
+│  └─ Redirected back to app                                                    │
+│                                                                                 │
+│  OPTION 3: GitHub OAuth (NEW)                                                 │
+│  ├─ User clicks "GitHub" button                                               │
+│  ├─ Redirected to GitHub sign-in                                              │
+│  ├─ User authorizes app                                                       │
+│  └─ Redirected back to app                                                    │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ ROLE-BASED REDIRECT ─────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Student Role                                                                 │
+│  ├─ Selects "Student" on Step 1                                               │
+│  ├─ Clicks Google/GitHub                                                      │
+│  ├─ Signs in                                                                  │
+│  └─ Redirected to: /dashboard/my-profile                                      │
+│                                                                                 │
+│  Instructor Role                                                              │
+│  ├─ Selects "Instructor" on Step 1                                            │
+│  ├─ Clicks Google/GitHub                                                      │
+│  ├─ Signs in                                                                  │
+│  └─ Redirected to: /dashboard/instructor                                      │
+│                                                                                 │
+│  Admin Role                                                                   │
+│  ├─ Selects "Admin" on Step 1                                                 │
+│  ├─ Clicks Google/GitHub                                                      │
+│  ├─ Signs in                                                                  │
+│  └─ Redirected to: /admin/dashboard                                           │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ SETUP CHECKLIST ─────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  GOOGLE SETUP                                                                 │
+│  ☐ Create Google OAuth app                                                    │
+│  ☐ Copy Client ID                                                             │
+│  ☐ Copy Client Secret                                                         │
+│  ☐ Add redirect URI: http://localhost:3001/auth/callback                      │
+│  ☐ Add credentials to Supabase                                                │
+│  ☐ Enable Google provider in Supabase                                         │
+│                                                                                 │
+│  GITHUB SETUP                                                                 │
+│  ☐ Create GitHub OAuth app                                                    │
+│  ☐ Copy Client ID                                                             │
+│  ☐ Copy Client Secret                                                         │
+│  ☐ Set callback URL: http://localhost:3001/auth/callback                      │
+│  ☐ Add credentials to Supabase                                                │
+│  ☐ Enable GitHub provider in Supabase                                         │
+│                                                                                 │
+│  TESTING                                                                      │
+│  ☐ Start frontend: npm start                                                  │
+│  ☐ Go to http://localhost:3001/login                                          │
+│  ☐ Test Google login                                                          │
+│  ☐ Test GitHub login                                                          │
+│  ☐ Verify correct dashboard redirect                                          │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                 ║
+║  ✅ OAUTH BUTTONS ADDED TO LOGIN PAGE                                         ║
+║                                                                                 ║
+║  Next: Configure Google & GitHub OAuth apps (20 minutes)                      ║
+║                                                                                 ║
+║  See: OAUTH_QUICK_START.md for quick setup                                    ║
+║  See: OAUTH_SETUP_GUIDE.md for detailed instructions                          ║
+║                                                                                 ║
+╚════════════════════════════════════════════════════════════════════════════════╝

@@ -63,11 +63,10 @@ exports.verifyEnrollmentSecure = async (req, res, next) => {
 
         // ─── PAID COURSES: VERIFY PAYMENT STATUS ──────────────────────────────
         const { data: enrollment, error: enrollmentError } = await supabase
-            .from("enrollments")
-            .select("id, payment_status, enrollment_type, active, enrolled_at")
-            .eq("student_id", studentId)
-            .eq("course_id", courseId)
-            .eq("active", true)
+            .from('course_enrollments')
+            .select('id, payment_status, enrolled_at')
+            .eq('student_id', studentId)
+            .eq('course_id', courseId)
             .maybeSingle();
 
         if (enrollmentError) {
@@ -89,7 +88,7 @@ exports.verifyEnrollmentSecure = async (req, res, next) => {
         }
 
         // ─── VERIFY PAYMENT STATUS FOR PAID COURSES ───────────────────────────
-        if (enrollment.enrollment_type === "paid" && enrollment.payment_status !== "completed") {
+        if (enrollment && enrollment.payment_status !== "paid" && enrollment.payment_status !== "completed") {
             return res.status(403).json({
                 success: false,
                 message: "Payment not verified. Please complete payment to access this course.",
@@ -150,18 +149,17 @@ exports.checkEnrollmentStatus = async (req, res, next) => {
 
         // Check enrollment for paid courses
         const { data: enrollment } = await supabase
-            .from("enrollments")
-            .select("id, payment_status, enrollment_type, active")
-            .eq("student_id", studentId)
-            .eq("course_id", courseId)
-            .eq("active", true)
+            .from('course_enrollments')
+            .select('id, payment_status')
+            .eq('student_id', studentId)
+            .eq('course_id', courseId)
             .maybeSingle();
 
         req.enrollmentStatus = {
             isEnrolled: !!enrollment,
-            canAccess: enrollment?.payment_status === "completed",
+            canAccess: !!enrollment && (enrollment.payment_status === 'paid' || enrollment.payment_status === 'completed' || enrollment.payment_status === 'Free'),
             paymentStatus: enrollment?.payment_status,
-            enrollmentType: enrollment?.enrollment_type
+            enrollmentType: enrollment?.payment_status === 'Free' ? 'free' : 'paid'
         };
 
         next();
@@ -188,7 +186,7 @@ exports.verifyEnrollmentAdmin = async (req, res, next) => {
         }
 
         const { data: enrollment, error } = await supabase
-            .from("enrollments")
+            .from("course_enrollments")
             .select("*")
             .eq("student_id", studentId)
             .eq("course_id", courseId)

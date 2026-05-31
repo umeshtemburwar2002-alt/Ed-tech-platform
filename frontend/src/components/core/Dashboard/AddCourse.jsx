@@ -218,7 +218,7 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
       if (!data.title.trim()) return "Title is required";
       if (!data.category) return "Category is required";
       if (!data.description.trim()) return "Description is required";
-      if (!data.coverImage && !thumbnailPreview) return "Thumbnail is required";
+      if (data.videoType === 'upload' && !data.coverImage && !thumbnailPreview) return "Thumbnail is required";
       if (data.videoType === 'youtube' && !data.preview_video_url.trim()) return "YouTube URL is required";
       if (data.videoType === 'upload' && !data.videoFile) return "Video file is required";
     } else if (step === 1) {
@@ -309,7 +309,7 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
           const lec = sec.lectures[li];
           await addLesson(sectionRow.id, {
             title:         lec.title,
-            video_url:     data.videoType === "youtube" ? data.videoUrl : "",
+            video_url:     data.videoType === "youtube" ? data.preview_video_url : "",
             time_duration: String(lec.duration ?? 0),
             order_index:   li,
           });
@@ -470,73 +470,6 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
 
             <div className="space-y-8">
               <div className="space-y-4">
-                <label className="block text-sm font-semibold text-richblack-5">Course Thumbnail <span className="text-pink-200">*</span></label>
-                <div className="relative group">
-                  <div className={`aspect-video rounded-xl border-2 border-dashed border-richblack-600 bg-richblack-900 flex flex-col items-center justify-center overflow-hidden transition-all duration-300 ${!thumbnailPreview ? "hover:border-yellow-50" : ""}`}>
-                    {thumbnailPreview ? (
-                      <img src={thumbnailPreview} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="flex flex-col items-center gap-2 text-richblack-400">
-                        <FaCloudUploadAlt className="text-4xl" />
-                        <p className="text-xs">Click to upload image</p>
-                      </div>
-                    )}
-                    <input type="file" accept="image/*" onChange={e => update('coverImage', e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                  </div>
-                  {thumbnailPreview && (
-                    <button
-                      onClick={() => {
-                        setThumbnailPreview(null);
-                        update('coverImage', null);
-                        if (!isCustomThumbnail) {
-                          setIsCustomThumbnail(true);
-                        }
-                      }}
-                      className="absolute top-2 right-2 bg-pink-200 text-richblack-900 p-1.5 rounded-full text-xs font-bold hover:scale-110 transition-all"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-                {thumbnailPreview && !isCustomThumbnail && (
-                  <div className="flex flex-col items-center justify-center mt-2 p-2 bg-yellow-50/5 border border-yellow-50/10 rounded-lg">
-                    <span className="text-xs text-yellow-50 font-semibold flex items-center gap-1">
-                      <FaYoutube className="text-rose-500" /> Auto-fetched from YouTube
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomThumbnail(true);
-                        setThumbnailPreview(null);
-                        update('coverImage', null);
-                      }}
-                      className="text-yellow-50 hover:underline text-[11px] font-bold mt-1 uppercase tracking-wider"
-                    >
-                      Replace with custom image
-                    </button>
-                  </div>
-                )}
-                {thumbnailPreview && isCustomThumbnail && (
-                  <div className="flex flex-col items-center justify-center mt-2">
-                    <span className="text-xs text-richblack-400">Custom uploaded image</span>
-                    {data.preview_thumbnail && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomThumbnail(false);
-                          setThumbnailPreview(data.preview_thumbnail);
-                          update('coverImage', null);
-                        }}
-                        className="text-yellow-50 hover:underline text-[11px] font-bold mt-1 uppercase tracking-wider"
-                      >
-                        Revert to YouTube thumbnail
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <label className="block text-sm font-semibold text-richblack-5">Video Source <span className="text-pink-200">*</span></label>
                   <div className="flex bg-richblack-900 p-1 rounded-lg border border-richblack-700">
@@ -562,25 +495,54 @@ export default function AddCourse({ setActiveSection, initialStep = 0 }) {
                     />
                   </div>
                 ) : (
-                  <div className="relative group">
-                    <div className={`aspect-video rounded-xl border-2 border-dashed border-richblack-600 bg-richblack-900 flex flex-col items-center justify-center overflow-hidden transition-all duration-300 ${!videoPreview ? "hover:border-yellow-50" : ""}`}>
-                      {videoPreview ? (
-                        <div className="flex flex-col items-center gap-2 p-4 text-center">
-                          <FaVideo className="text-3xl text-yellow-50" />
-                          <p className="text-xs text-richblack-25 font-medium truncate max-w-[200px]">{data.videoFile?.name}</p>
-                          <p className="text-[10px] text-richblack-400">File size: {(data.videoFile?.size / (1024 * 1024)).toFixed(2)} MB</p>
+                  <div className="space-y-8">
+                    <div className="space-y-4">
+                      <label className="block text-sm font-semibold text-richblack-5">Course Thumbnail <span className="text-pink-200">*</span></label>
+                      <div className="relative group">
+                        <div className={`aspect-video rounded-xl border-2 border-dashed border-richblack-600 bg-richblack-900 flex flex-col items-center justify-center overflow-hidden transition-all duration-300 ${!thumbnailPreview ? "hover:border-yellow-50" : ""}`}>
+                          {thumbnailPreview ? (
+                            <img src={thumbnailPreview} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center gap-2 text-richblack-400">
+                              <FaCloudUploadAlt className="text-4xl" />
+                              <p className="text-xs">Click to upload image</p>
+                            </div>
+                          )}
+                          <input type="file" accept="image/*" onChange={e => update('coverImage', e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
                         </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-richblack-400">
-                          <FaCloudUploadAlt className="text-4xl" />
-                          <p className="text-xs">Click to upload MP4 video</p>
-                        </div>
-                      )}
-                      <input type="file" accept="video/mp4" onChange={e => update('videoFile', e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                        {thumbnailPreview && (
+                          <button
+                            onClick={() => {
+                              setThumbnailPreview(null);
+                              update('coverImage', null);
+                            }}
+                            className="absolute top-2 right-2 bg-pink-200 text-richblack-900 p-1.5 rounded-full text-xs font-bold hover:scale-110 transition-all"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    {videoPreview && (
-                      <button onClick={() => { setVideoPreview(null); update('videoFile', null) }} className="absolute top-2 right-2 bg-pink-200 text-richblack-900 p-1.5 rounded-full text-xs font-bold hover:scale-110 transition-all">✕</button>
-                    )}
+                    <div className="relative group">
+                      <div className={`aspect-video rounded-xl border-2 border-dashed border-richblack-600 bg-richblack-900 flex flex-col items-center justify-center overflow-hidden transition-all duration-300 ${!videoPreview ? "hover:border-yellow-50" : ""}`}>
+                        {videoPreview ? (
+                          <div className="flex flex-col items-center gap-2 p-4 text-center">
+                            <FaVideo className="text-3xl text-yellow-50" />
+                            <p className="text-xs text-richblack-25 font-medium truncate max-w-[200px]">{data.videoFile?.name}</p>
+                            <p className="text-[10px] text-richblack-400">File size: {(data.videoFile?.size / (1024 * 1024)).toFixed(2)} MB</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2 text-richblack-400">
+                            <FaCloudUploadAlt className="text-4xl" />
+                            <p className="text-xs">Click to upload MP4 video</p>
+                          </div>
+                        )}
+                        <input type="file" accept="video/mp4" onChange={e => update('videoFile', e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      </div>
+                      {videoPreview && (
+                        <button onClick={() => { setVideoPreview(null); update('videoFile', null) }} className="absolute top-2 right-2 bg-pink-200 text-richblack-900 p-1.5 rounded-full text-xs font-bold hover:scale-110 transition-all">✕</button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

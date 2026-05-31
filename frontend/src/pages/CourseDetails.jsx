@@ -10,66 +10,52 @@ import { FaShareSquare, FaPlay } from "react-icons/fa"
 import { BiInfoCircle } from "react-icons/bi"
 import { HiOutlineGlobeAlt } from "react-icons/hi"
 import { ReactMarkdown } from "react-markdown/lib/react-markdown"
-import { supabase } from "../config/supabaseClient"
+import CourseActionButtons from "../components/core/Course/CourseActionButtons.jsx";
+import { apiConnector } from "../services/apiconnector";
+import { courseEndpoints } from "../services/apis";
 
-function CourseVideoPlayer({ courseData, isEnrolled }) {
-  const [isPlaying, setIsPlaying] = useState(false);
+function CourseVideoPlayer({ courseData, isEnrolled, handleEnrollment, navigate, courseId }) {
   const isFree = courseData.is_free || Number(courseData.price) === 0;
-  const videoId = courseData.preview_video_id;
-  const thumbnail = courseData.thumbnail || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
-
+  const thumbnail = courseData.final_thumbnail_url || courseData.youtube_thumbnail_url || courseData.thumbnail || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
   const canWatch = isFree || isEnrolled;
 
-  if (!videoId) {
-    return (
-      <div className="relative aspect-video w-full bg-[#111625] overflow-hidden rounded-2xl">
-        <img src={thumbnail} alt={courseData.title || courseData.course_name} className="w-full h-full object-cover" />
-      </div>
-    );
-  }
-
-  if (isPlaying && canWatch) {
-    return (
-      <div className="relative aspect-video w-full bg-black overflow-hidden rounded-2xl">
-        <iframe
-          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&modestbranding=1&rel=0`}
-          title="Course Preview Video"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          className="w-full h-full animate-fadeIn"
-        ></iframe>
-      </div>
-    );
-  }
+  const handleClick = () => {
+    if (isEnrolled) {
+      navigate(`/learn/${courseId}`);
+    } else if (!isFree) {
+      handleEnrollment();
+    } else {
+      handleEnrollment(); // Enrollment logic handles free courses automatically
+    }
+  };
 
   return (
-    <div className="relative aspect-video w-full bg-[#111625] overflow-hidden rounded-2xl group">
-      <img src={thumbnail} alt={courseData.title || courseData.course_name} className="w-full h-full object-cover" />
+    <div 
+      onClick={handleClick}
+      className="relative aspect-video w-full bg-[#111625] overflow-hidden rounded-2xl group cursor-pointer border border-richblack-700"
+    >
+      <img src={thumbnail} alt={courseData.title || courseData.course_name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
       
       {canWatch ? (
-        // Playable Preview Overlay
-        <button
-          onClick={() => setIsPlaying(true)}
-          className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 hover:bg-black/55 transition-all duration-300"
-        >
+        // Playable Preview Overlay - Re-routes to Classroom
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 hover:bg-black/55 transition-all duration-300">
           <div className="w-16 h-16 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-2xl">
-            <FaPlay className="h-5 w-5 text-white ml-1 fill-current animate-pulse" />
+            <FaPlay className="h-5 w-5 text-white ml-1 fill-current" />
           </div>
           <span className="absolute bottom-4 left-4 text-[10px] font-black uppercase tracking-wider text-white bg-purple-600/80 border border-purple-500/30 px-3 py-1 rounded-full shadow-lg">
-            Free Preview
+            {isEnrolled ? "Go to Classroom" : "Free Course"}
           </span>
-        </button>
+        </div>
       ) : (
         // Locked Preview Overlay
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-[3px] p-4 text-center">
-          <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-3 shadow-lg">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-[3px] p-4 text-center transition-all duration-300 hover:bg-black/80">
+          <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform">
             <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
           <span className="text-sm font-black text-white tracking-widest uppercase">Enroll to Watch</span>
-          <span className="text-[10px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">This video is only available for enrolled students.</span>
+          <span className="text-[10px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">This video is only available inside the classroom.</span>
         </div>
       )}
     </div>
@@ -104,19 +90,21 @@ function CourseDetails() {
         console.log("course details res: ", res)
         setResponse(res)
 
-        // Check user enrollment state safely using Supabase query
+        // Check user enrollment state securely via backend API
         let enrolled = false;
-        if (user) {
-          const { data: enrollData, error: enrollError } = await supabase
-            .from("enrollments")
-            .select("id")
-            .eq("course_id", courseId)
-            .eq("student_id", user.id || user._id)
-            .eq("enrollment_status", "active")
-            .maybeSingle();
-
-          if (!enrollError && enrollData) {
-            enrolled = true;
+        if (user && token) {
+          try {
+            const enrollRes = await apiConnector(
+              "GET",
+              `${courseEndpoints.CHECK_ENROLLMENT_API}/${courseId}`,
+              null,
+              { Authorization: `Bearer ${token}` }
+            );
+            if (enrollRes?.data?.success && enrollRes?.data?.enrolled) {
+              enrolled = true;
+            }
+          } catch (error) {
+            console.log("Could not check enrollment status", error);
           }
         }
         setIsEnrolled(enrolled);
@@ -145,60 +133,35 @@ function CourseDetails() {
     try {
       const details = response?.data?.courseDetails;
       const isFree = details?.is_free || Number(details?.price) === 0;
-      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:4000/api/v1';
-
+      
       if (isFree) {
         toast.loading("Enrolling you instantly in this free course...");
-        
-        const enrollRes = await fetch(`${baseUrl}/course/enroll/free/${details.id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${activeToken}`
-          }
-        });
-        
-        const resData = await enrollRes.json();
-        toast.dismiss();
-
-        if (resData.success) {
-          toast.success("Enrolled successfully! Enjoy start learning!");
-          setIsEnrolled(true);
-          navigate(`/learn/${details.id}`);
-        } else {
-          toast.error(resData.message || "Failed to process free enrollment");
-        }
-      } else {
-        // Paid course simulated checkout flow
-        toast.loading("Opening secure checkout simulation gateway...");
-        
-        setTimeout(async () => {
-          toast.dismiss();
-          toast.loading("Authorizing purchase and issuing certificate eligibility...");
+        try {
+          const res = await apiConnector(
+            "POST",
+            `${courseEndpoints.ENROLL_FREE_API}/${details.id}`,
+            null,
+            { Authorization: `Bearer ${activeToken}` }
+          );
           
-          const enrollRes = await fetch(`${baseUrl}/course/enroll/paid/${details.id}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${activeToken}`
-            }
-          });
-          
-          const resData = await enrollRes.json();
           toast.dismiss();
-
-          if (resData.success) {
-            toast.success("Transaction process complete! Added to classrooms.");
+          if (res?.data?.success) {
+            toast.success("Enrolled successfully! Enjoy start learning!");
             setIsEnrolled(true);
             navigate(`/learn/${details.id}`);
           } else {
-            toast.error(resData.message || "Failed to authorize payment");
+            throw new Error(res?.data?.message || "Enrollment failed");
           }
-        }, 1500);
+        } catch (error) {
+          toast.dismiss();
+          toast.error(error?.response?.data?.message || "Failed to process free enrollment");
+        }
+      } else {
+        // Trigger real Razorpay Checkout via BuyCourse
+        BuyCourse(activeToken, [details.id], user, navigate, dispatch);
       }
     } catch (err) {
       console.error(err);
-      toast.dismiss();
       toast.error("Failed to process transaction checkout");
     }
   };
@@ -305,15 +268,16 @@ function CourseDetails() {
               <p className="space-x-3 pb-4 text-3xl font-semibold text-richblack-5">
                 {isFree ? <span className="text-emerald-400">FREE</span> : `Rs. ${price}`}
               </p>
-              <button 
-                className="yellowButton" 
-                onClick={isEnrolled ? () => navigate(`/learn/${courseId}`) : handleEnrollment}
-              >
-                {isEnrolled ? "Go to Classroom" : (isFree ? "Start Learning Free" : "Buy Now")}
-              </button>
-              {!isEnrolled && (
-                <button className="blackButton" onClick={handleAddToCart}>Add to Cart</button>
-              )}
+              <CourseActionButtons
+              price={price}
+              isFree={isFree}
+              isEnrolled={isEnrolled}
+              onBuy={handleEnrollment}
+              onAddToCart={handleAddToCart}
+              buyLoading={paymentLoading}
+              addLoading={false}
+              enrolledRender={<button className="bg-cyan-500 hover:bg-cyan-400 text-black px-5 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">Go To Classroom</button>}
+            />
             </div>
           </div>
           {/* Courses Card */}

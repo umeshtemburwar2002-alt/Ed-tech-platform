@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink, Link } from "react-router-dom";
 import { FaGraduationCap, FaPlus, FaHome, FaUser, FaBook, FaQuestionCircle, FaStickyNote, FaVideo } from "react-icons/fa";
 import { useSelector } from "react-redux";
+import Logo from "../../navbar/Logo";
 
 const Sidebar = () => {
 	const { user } = useSelector((state) => state.profile);
@@ -34,13 +35,7 @@ const Sidebar = () => {
 			{/* Logo Section */}
 			<div className="p-4 border-b border-richblack-700">
 				<Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-					<div className="w-10 h-10 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
-						<FaGraduationCap className="text-richblack-900 text-xl" />
-					</div>
-					<div>
-						<h1 className="font-bold text-yellow-50 text-lg leading-tight">Aslam Education</h1>
-						<p className="text-[10px] text-richblack-400 uppercase tracking-wider">Platform</p>
-					</div>
+					<Logo />
 				</Link>
 			</div>
 
@@ -50,9 +45,8 @@ const Sidebar = () => {
 						key={link.to}
 						to={link.to}
 						className={({ isActive }) =>
-							`px-6 py-3 text-sm font-medium transition-all duration-200 flex items-center space-x-3 ${
-								isActive 
-								? "bg-yellow-800/20 text-yellow-50 border-r-4 border-yellow-50" 
+							`px-6 py-3 text-sm font-medium transition-all duration-200 flex items-center space-x-3 ${isActive
+								? "bg-yellow-800/20 text-yellow-50 border-r-4 border-yellow-50"
 								: "text-richblack-300 hover:bg-richblack-700 hover:text-richblack-50"
 							}`
 						}

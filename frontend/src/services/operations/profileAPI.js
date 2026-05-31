@@ -3,6 +3,7 @@ import { setLoading, setUser } from "../../slices/profileSlice"
 import { apiConnector } from "../apiconnector"
 import { profileEndpoints, settingsEndpoints } from "../apis"
 import { logout } from "./authAPI"
+import { supabase } from "../../config/supabaseClient"
 
 const {
   GET_USER_DETAILS_API,
@@ -48,19 +49,44 @@ export async function getUserEnrolledCourses(token) {
   const toastId = toast.loading("Loading...")
   let result = []
   try {
-    const response = await apiConnector(
-      "GET",
-      GET_USER_ENROLLED_COURSES_API,
-      null,
-      {
-        Authorization: `Bearer ${token}`,
-      }
-    )
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Not authenticated")
 
-    if (!response.data.success) {
-      throw new Error(response.data.message)
+    const { data, error } = await supabase
+      .from('enrollments')
+      .select(`
+        id, created_at, updated_at, progress_percentage, completed,
+        courses:course_id (
+          id, course_name, thumbnail, final_thumbnail_url, youtube_thumbnail_url,
+          categories:category_id ( name ),
+          instructor:instructor_id ( first_name, last_name )
+        )
+      `)
+      .eq('student_id', user.id)
+
+    if (error) {
+      throw error
     }
-    result = response.data.data
+
+    // Format to match what the frontend expects
+    result = data.map(enrollment => {
+      const course = enrollment.courses;
+      return {
+        _id: course?.id,
+        courseName: course?.course_name,
+        thumbnail: course?.final_thumbnail_url || course?.youtube_thumbnail_url || course?.thumbnail,
+        progressPercentage: enrollment.progress_percentage || 0,
+        completed: enrollment.completed || false,
+        category: course?.categories?.name,
+        instructor: {
+          firstName: course?.instructor?.first_name,
+          lastName: course?.instructor?.last_name
+        },
+        createdAt: enrollment.created_at,
+        updatedAt: enrollment.updated_at
+      }
+    }).filter(c => c._id); // Filter out any null courses
+    
   } catch (error) {
     console.log("GET_USER_ENROLLED_COURSES_API ERROR............", error)
     toast.error("Could Not Get Enrolled Courses")

@@ -97,4 +97,11 @@ router.post("/webhook", paymentController.handleWebhook);
  */
 router.post("/free", auth, isStudent, paymentController.enrollFree);
 
+/**
+ * GET /api/v1/enrollment/check/:courseId
+ * 
+ * Checks if a student is enrolled in a course
+ */
+router.get("/check/:courseId", auth, isStudent, paymentController.checkEnrollment);
+
 module.exports = router;

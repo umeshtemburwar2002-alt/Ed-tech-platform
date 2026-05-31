@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase API Key Diagnostic</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #333; }
+        .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #007bff; }
+        .success { border-left-color: #28a745; color: #28a745; }
+        .error { border-left-color: #dc3545; color: #dc3545; }
+        .warning { border-left-color: #ffc107; color: #ff9800; }
+        code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; font-family: monospace; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .output { background: #000; color: #0f0; padding: 15px; border-radius: 4px; margin: 10px 0; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Supabase API Key Diagnostic Tool</h1>
+        
+        <div class="section">
+            <h2>Step 1: Paste Your Anon Key</h2>
+            <p>Get this from: Supabase Dashboard → Settings → API → Anon public key</p>
+            <input type="text" id="anonKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+        </div>
+
+        <div class="section">
+            <h2>Step 2: Paste Your Project URL</h2>
+            <p>Get this from: Supabase Dashboard → Settings → API → Project URL</p>
+            <input type="text" id="projectUrl" placeholder="https://your-project.supabase.co" />
+        </div>
+
+        <div class="section">
+            <button onclick="diagnose()">🔧 Run Diagnostic</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function diagnose() {
+            const anonKey = document.getElementById('anonKey').value.trim();
+            const projectUrl = document.getElementById('projectUrl').value.trim();
+            const results = document.getElementById('results');
+            let html = '';
+
+            // Check 1: Key format
+            html += '<div class="section">';
+            html += '<h3>✓ Check 1: Key Format</h3>';
+            
+            if (!anonKey) {
+                html += '<div class="error">❌ No key provided</div>';
+            } else {
+                const parts = anonKey.split('.');
+                if (parts.length === 3) {
+                    html += '<div class="success">✅ Valid JWT format (3 parts)</div>';
+                    html += '<div>Key length: ' + anonKey.length + ' characters</div>';
+                    
+                    // Try to decode
+                    try {
+                        const payload = JSON.parse(atob(parts[1]));
+                        html += '<div class="success">✅ JWT payload decoded successfully</div>';
+                        html += '<div><strong>Payload:</strong></div>';
+                        html += '<div style="margin-left: 20px;">';
+                        html += 'iss: ' + payload.iss + '<br>';
+                        html += 'ref: ' + payload.ref + '<br>';
+                        html += 'role: ' + payload.role + '<br>';
+                        html += 'exp: ' + new Date(payload.exp * 1000).toLocaleString() + '<br>';
+                        html += '</div>';
+                        
+                        // Check expiration
+                        if (payload.exp * 1000 < Date.now()) {
+                            html += '<div class="error">❌ KEY EXPIRED! Get a new one from Supabase Dashboard</div>';
+                        } else {
+                            html += '<div class="success">✅ Key is not expired</div>';
+                        }
+                    } catch (e) {
+                        html += '<div class="error">❌ Could not decode JWT: ' + e.message + '</div>';
+                    }
+                } else {
+                    html += '<div class="error">❌ Invalid JWT format (expected 3 parts, got ' + parts.length + ')</div>';
+                    html += '<div>Key should have format: header.payload.signature</div>';
+                }
+            }
+            html += '</div>';
+
+            // Check 2: URL format
+            html += '<div class="section">';
+            html += '<h3>✓ Check 2: Project URL</h3>';
+            
+            if (!projectUrl) {
+                html += '<div class="error">❌ No URL provided</div>';
+            } else {
+                if (projectUrl.startsWith('https://') && projectUrl.endsWith('.supabase.co')) {
+                    html += '<div class="success">✅ Valid URL format</div>';
+                    html += '<div>URL: ' + projectUrl + '</div>';
+                } else {
+                    html += '<div class="error">❌ Invalid URL format</div>';
+                    html += '<div>Should start with https:// and end with .supabase.co</div>';
+                }
+            }
+            html += '</div>';
+
+            // Check 3: Key-URL match
+            if (anonKey && projectUrl) {
+                html += '<div class="section">';
+                html += '<h3>✓ Check 3: Key-URL Match</h3>';
+                
+                try {
+                    const parts = anonKey.split('.');
+                    if (parts.length === 3) {
+                        const payload = JSON.parse(atob(parts[1]));
+                        const projectId = projectUrl.split('//')[1].split('.')[0];
+                        
+                        if (payload.ref === projectId) {
+                            html += '<div class="success">✅ Key matches project URL</div>';
+                            html += '<div>Project ID: ' + projectId + '</div>';
+                        } else {
+                            html += '<div class="error">❌ KEY MISMATCH!</div>';
+                            html += '<div>Key is for project: ' + payload.ref + '</div>';
+                            html += '<div>URL is for project: ' + projectId + '</div>';
+                            html += '<div style="margin-top: 10px; padding: 10px; background: #ffe0e0;">This is why you\'re getting "Invalid API key" error!</div>';
+                        }
+                    }
+                } catch (e) {
+                    html += '<div class="error">❌ Could not verify match: ' + e.message + '</div>';
+                }
+                
+                html += '</div>';
+            }
+
+            // Check 4: Instructions
+            html += '<div class="section">';
+            html += '<h3>📋 Next Steps</h3>';
+            html += '<ol>';
+            html += '<li>If all checks pass: Update <code>frontend/.env</code> with these values</li>';
+            html += '<li>If key is expired: Get a new one from Supabase Dashboard</li>';
+            html += '<li>If key-URL mismatch: Copy the correct key for this project</li>';
+            html += '<li>Restart dev server: <code>npm start</code></li>';
+            html += '<li>Clear browser cache: Ctrl+Shift+Delete</li>';
+            html += '<li>Hard refresh: Ctrl+Shift+R</li>';
+            html += '</ol>';
+            html += '</div>';
+
+            results.innerHTML = html;
+        }
+
+        // Auto-load from localStorage if available
+        window.addEventListener('load', () => {
+            const saved = localStorage.getItem('supabaseKey');
+            if (saved) {
+                document.getElementById('anonKey').value = saved;
+            }
+        });
+
+        // Save to localStorage
+        document.getElementById('anonKey').addEventListener('change', (e) => {
+            localStorage.setItem('supabaseKey', e.target.value);
+        });
+    </script>
+</body>
+</html>

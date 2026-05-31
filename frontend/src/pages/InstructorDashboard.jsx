@@ -10,6 +10,7 @@ import {
 } from "react-icons/fa";
 import { getInstructorStats, getInstructorCourses } from "../services/courseService";
 import { supabase } from "../config/supabaseClient";
+import { getYoutubeThumbnail } from "../utils/youtubeUtils";
 
 // ── Stat Card ──────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, title, value, sub, iconBg, iconColor, delay = 0 }) => (
@@ -114,6 +115,26 @@ const CourseRow = ({ course, navigate }) => {
   const enrollments = course.enrollments?.length ?? 0;
   const status      = course.status ?? "Draft";
   const courseTitle = course.title || course.course_name || "Untitled Course";
+
+  // Resolve thumbnail: DB pre-computed > YouTube generated > uploaded > null
+  const dbThumbnail = course.final_thumbnail_url || course.youtube_thumbnail_url || null;
+  const youtubeUrl =
+    course.preview_video_url ||
+    course.youtube_video_url ||
+    null;
+  const youtubeThumbnail = dbThumbnail || getYoutubeThumbnail(youtubeUrl);
+  const resolvedThumbnail = youtubeThumbnail || course.custom_thumbnail_url || course.thumbnail_url || (course.thumbnail && course.thumbnail !== '' ? course.thumbnail : null) || null;
+
+  function handleImgError(e) {
+    const src = e.target.src;
+    if (youtubeUrl && src.includes("maxresdefault")) {
+      const hq = getYoutubeThumbnail(youtubeUrl, "hq");
+      if (hq && hq !== src) { e.target.src = hq; return; }
+    }
+    const fallback = course.thumbnail_url || course.thumbnail;
+    if (fallback && src !== fallback) { e.target.src = fallback; return; }
+    e.target.style.display = "none";
+  }
   
   return (
     <motion.div
@@ -124,9 +145,15 @@ const CourseRow = ({ course, navigate }) => {
       onClick={() => navigate(`/dashboard/instructor/my-courses`)}
     >
       {/* Thumbnail */}
-      <div className="w-14 aspect-video rounded-lg overflow-hidden bg-white/5 border border-white/10 shrink-0">
-        {course.thumbnail
-          ? <img src={course.thumbnail} alt={courseTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+      <div className="w-14 aspect-video rounded-lg overflow-hidden bg-white/5 border border-white/10 shrink-0 flex items-center justify-center">
+        {resolvedThumbnail
+          ? <img
+              src={resolvedThumbnail}
+              alt={courseTitle}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={handleImgError}
+              loading="lazy"
+            />
           : <div className="w-full h-full flex items-center justify-center text-slate-600"><FaBook /></div>
         }
       </div>
@@ -263,7 +290,7 @@ export default function InstructorDashboard() {
   const quickActions = [
     { label: "Create Course",   icon: FaPlus,      path: "/dashboard/instructor/add-course",   color: "bg-[#00B4D8]/10 border-[#00B4D8]/20 text-[#00B4D8]" },
     { label: "My Courses",      icon: FaBook,      path: "/dashboard/instructor/my-courses",   color: "bg-violet-500/10 border-violet-500/20 text-violet-400" },
-    { label: "Students",        icon: FaUsers,     path: "/dashboard/instructor/students",     color: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
+    // { label: "Students",        icon: FaUsers,     path: "/dashboard/instructor/students",     color: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
     { label: "Analytics",       icon: FaChartLine, path: "/dashboard/instructor/analytics",   color: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" },
   ];
 

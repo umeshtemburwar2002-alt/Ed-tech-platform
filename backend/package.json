@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "test-db": "node C:/Users/umesh/.gemini/antigravity-ide/brain/d005024b-78a4-4641-a0c0-aea020eaa6ad/scratch/test_payments_db.js"
   },
   "keywords": [],
   "author": "",

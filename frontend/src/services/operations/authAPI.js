@@ -137,17 +137,65 @@ export function login(email, password, navigate, selectedRole = null, customRedi
     const toastId = toast.loading("Signing in...");
     dispatch(setLoading(true));
     try {
-      console.log("[login] Starting login for:", email);
+      console.log("[login] 🔍 Starting login for:", email);
+      console.log("[login]    - Email format valid:", /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+      console.log("[login]    - Password provided:", !!password);
+
+      // Validate inputs
+      if (!email || !password) {
+        console.error("[login] ❌ Missing email or password");
+        toast.error("Please enter both email and password");
+        return;
+      }
+
+      console.log("[login] 📡 Calling supabase.auth.signInWithPassword...");
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) throw error;
+
+      // DETAILED ERROR HANDLING
+      if (error) {
+        console.error("[login] ❌ Supabase auth error:", {
+          status: error.status,
+          message: error.message,
+          name: error.name,
+          fullError: error
+        });
+
+        // Specific error messages
+        if (error.status === 401) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Invalid email or password. Please try again.");
+          } else if (error.message.includes("Invalid API key")) {
+            console.error("[login] ❌ CRITICAL: Invalid API key error");
+            console.error("[login]    This means the REACT_APP_SUPABASE_ANON_KEY is wrong");
+            console.error("[login]    Check frontend/.env and restart dev server");
+            console.error("[login]    Current key preview:", process.env.REACT_APP_SUPABASE_ANON_KEY?.substring(0, 50));
+            console.error("[login]    Current URL:", process.env.REACT_APP_SUPABASE_URL);
+            toast.error("❌ Invalid Supabase API Key. Check console for details. Update frontend/.env with correct ANON_KEY from Supabase Dashboard.", { duration: 8000 });
+          } else {
+            toast.error(error.message || "Login failed");
+          }
+        } else if (error.status === 422) {
+          toast.error("Invalid email format");
+        } else if (error.status === 429) {
+          toast.error("Too many login attempts. Please try again later.");
+        } else {
+          toast.error(error.message || "Login failed");
+        }
+        return;
+      }
+
+      console.log("[login] ✅ Supabase authentication successful");
+      console.log("[login]    - User ID:", data.user?.id);
+      console.log("[login]    - Email:", data.user?.email);
 
       const accessToken = data.session?.access_token;
       if (!accessToken) {
-        console.warn("[login] No access token in session");
+        console.warn("[login] ⚠️ No access token in session");
+        console.warn("[login]    - Session data:", data.session);
         toast.error(
           "Confirm your email from the inbox link before signing in.",
           { duration: 6000 }
@@ -155,7 +203,11 @@ export function login(email, password, navigate, selectedRole = null, customRedi
         return;
       }
 
-      console.log("[login] ✅ Authentication successful, fetching profile...");
+      console.log("[login] ✅ Access token obtained");
+      console.log("[login]    - Token length:", accessToken.length);
+      console.log("[login]    - Token preview:", accessToken.substring(0, 20) + "...");
+
+      console.log("[login] 📡 Fetching user profile...");
 
       // Fetch existing profile
       const { data: profile, error: profileError } = await supabase
@@ -164,13 +216,24 @@ export function login(email, password, navigate, selectedRole = null, customRedi
         .eq("id", data.user.id)
         .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("[login] ⚠️ Profile fetch error:", profileError);
+        // Don't fail login if profile fetch fails — user can still log in
+      } else if (profile) {
+        console.log("[login] ✅ Profile found:", {
+          id: profile.id,
+          email: profile.email,
+          accountType: profile.account_type
+        });
+      } else {
+        console.log("[login] ℹ️ No profile found for user (new user)");
+      }
 
       // If it's a new user (no profile) and a role was selected, save it
       if (!profile && selectedRole) {
-        console.log("[login] Creating profile for new user with role:", selectedRole);
+        console.log("[login] 📝 Creating profile for new user with role:", selectedRole);
         const normalizedRole = selectedRole.toLowerCase();
-        await supabase.from("profiles").upsert(
+        const { error: upsertError } = await supabase.from("profiles").upsert(
           {
             id:           data.user.id,
             email:        data.user.email ?? "",
@@ -180,6 +243,12 @@ export function login(email, password, navigate, selectedRole = null, customRedi
           },
           { onConflict: "id" }
         );
+
+        if (upsertError) {
+          console.warn("[login] ⚠️ Profile upsert error:", upsertError);
+        } else {
+          console.log("[login] ✅ Profile created");
+        }
       }
 
       // Re-fetch profile after potential upsert
@@ -191,15 +260,18 @@ export function login(email, password, navigate, selectedRole = null, customRedi
 
       const appUser = buildAppUserFromSession(data.session, freshProfile ?? profile);
       if (!appUser) {
-        console.error("[login] Failed to build app user from session");
+        console.error("[login] ❌ Failed to build app user from session");
+        console.error("[login]    - Session:", data.session);
+        console.error("[login]    - Profile:", freshProfile ?? profile);
         toast.error("Could not load user profile.");
         return;
       }
 
-      console.log("[login] ✅ User profile loaded:", {
+      console.log("[login] ✅ App user built successfully:", {
         id: appUser.id,
         email: appUser.email,
-        accountType: appUser.accountType
+        accountType: appUser.accountType,
+        firstName: appUser.firstName
       });
 
       dispatch(setToken(accessToken));
@@ -207,20 +279,28 @@ export function login(email, password, navigate, selectedRole = null, customRedi
       persistClientSession(accessToken, appUser);
       toast.success("Login successful");
 
-      console.log("[login] ✅ Session persisted, redirecting...");
+      console.log("[login] ✅ Redux state updated, redirecting...");
 
       if (customRedirect) {
+        console.log("[login] 🔀 Redirecting to custom URL:", customRedirect);
         navigate(customRedirect);
       } else if (appUser.accountType?.toLowerCase() === "admin") {
+        console.log("[login] 🔀 Redirecting to admin dashboard");
         navigate("/admin/dashboard");
       } else if (appUser.accountType?.toLowerCase() === "instructor") {
+        console.log("[login] 🔀 Redirecting to instructor setup");
         navigate("/instructor/setup");
       } else {
+        console.log("[login] 🔀 Redirecting to student dashboard");
         navigate("/dashboard/my-profile");
       }
     } catch (error) {
-      console.error("[login] ❌ Login failed:", error);
-      toast.error(error.message || "Login failed");
+      console.error("[login] ❌ Unexpected error:", {
+        message: error.message,
+        stack: error.stack,
+        fullError: error
+      });
+      toast.error(error.message || "Login failed. Please try again.");
     } finally {
       dispatch(setLoading(false));
       toast.dismiss(toastId);

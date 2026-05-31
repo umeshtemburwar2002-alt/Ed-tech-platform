@@ -22,7 +22,9 @@
   ],
   "dependencies": {
     "@pinecone-database/pinecone": "^6.1.4",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "razorpay": "^2.9.6",
+    "spinners-react": "^1.0.11"
   },
   "overrides": {
     "react": "18.3.1",
