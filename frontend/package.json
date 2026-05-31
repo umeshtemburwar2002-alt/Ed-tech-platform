@@ -76,6 +76,7 @@
     "@babel/plugin-transform-nullish-coalescing-operator": "^7.28.6",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.17",
     "eslint": "^9.39.4",
+    "eslint-config-react-app": "^7.0.1",
     "glob": "^11.1.0",
     "react-refresh": "^0.11.0",
     "react-scripts": "^5.0.1",
