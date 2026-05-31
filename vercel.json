@@ -1,12 +1,12 @@
 {
-  "buildCommand": "cd frontend && DISABLE_ESLINT_PLUGIN=true CI=false npm run build",
-  "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm install --legacy-peer-deps",
-  "framework": null,
+  "buildCommand": "DISABLE_ESLINT_PLUGIN=true CI=false npm run build",
+  "outputDirectory": "build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "create-react-app",
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/frontend/build/index.html"
+      "destination": "/index.html"
     }
   ]
 }
